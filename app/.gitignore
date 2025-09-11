@@ -1,0 +1,54 @@
+# ===================================================================
+#      Android Studio & Gradle
+# ===================================================================
+
+# Generated build files
+*.apk
+*.aab
+*.ap_
+*.dex
+*.a_
+*.aar
+build/
+*/build/
+
+# Gradle cache
+.gradle/
+captures/
+
+# Local configuration file (contains SDK path and other sensitive info)
+local.properties
+
+# ===================================================================
+#      IDE Files (Android Studio / IntelliJ)
+# ===================================================================
+
+# IntelliJ/Android Studio project files
+.idea/
+*.iml
+*.ipr
+*.iws
+.DS_Store
+
+# ===================================================================
+#      Secrets & Signing Keys
+# ===================================================================
+
+*.jks
+*.keystore
+google-services.json
+
+
+# ===================================================================
+#      Reports & Logs
+# ===================================================================
+lint-results-*.xml
+lint-results-*.html
+lint-results-*.txt
+output.json
+
+# ===================================================================
+#      System Files
+# ===================================================================
+Thumbs.db
+*~
