@@ -16,6 +16,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -25,6 +28,49 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.snackoverflow.Ayurveda.R
+
+val KalniaFontFamily = FontFamily(
+    Font(R.font.kalnia_thin, FontWeight.Thin),
+    Font(R.font.kalnia_extralight, FontWeight.ExtraLight),
+    Font(R.font.kalnia_light, FontWeight.Light),
+    Font(R.font.kalnia_regular, FontWeight.Normal),
+    Font(R.font.kalnia_medium, FontWeight.Medium),
+    Font(R.font.kalnia_semibold, FontWeight.SemiBold),
+    Font(R.font.kalnia_bold, FontWeight.Bold)
+)
+
+val GolosTextFontFamily = FontFamily(
+    Font(R.font.golos_text_regular, FontWeight.Normal),
+    Font(R.font.golos_text_medium, FontWeight.Medium),
+    Font(R.font.golos_text_semibold, FontWeight.SemiBold),
+    Font(R.font.golos_text_bold, FontWeight.Bold),
+    Font(R.font.golos_text_extrabold, FontWeight.ExtraBold),
+    Font(R.font.golos_text_black, FontWeight.Black)
+)
+
+val LoginTypography = Typography(
+    headlineMedium = TextStyle(
+        fontFamily = KalniaFontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 28.sp,
+        lineHeight = 36.sp,
+        letterSpacing = 0.sp
+    ),
+    bodyMedium = TextStyle(
+        fontFamily = GolosTextFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.5.sp
+    ),
+    labelMedium = TextStyle(
+        fontFamily = GolosTextFontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.5.sp
+    )
+)
 
 private val LightGreen = Color(0xFFC0E1BB)
 private val DarkGreen = Color(0xFF1F261D)
@@ -36,7 +82,7 @@ private val LoginColorScheme = lightColorScheme(
     surface = LightGreen,
     onBackground = DarkGreen,
     onSurface = DarkGreen,
-    onSurfaceVariant = DarkGreen.copy(alpha = 0.6f) // For dividers and labels
+    onSurfaceVariant = DarkGreen.copy(alpha = 0.6f)
 )
 
 @Composable
@@ -45,11 +91,10 @@ fun LoginScreenTheme(
 ) {
     MaterialTheme(
         colorScheme = LoginColorScheme,
-        typography = MaterialTheme.typography,
+        typography = LoginTypography,
         content = content
     )
 }
-
 
 @Composable
 fun LoginScreen() {
@@ -83,14 +128,12 @@ fun LoginScreen() {
             ) {
                 Text(
                     text = "Welcome Back!",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground // Use theme color
+                    style = MaterialTheme.typography.headlineMedium
                 )
                 Text(
                     text = "Log in to your account",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant // Use theme color
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -149,6 +192,7 @@ fun LoginScreen() {
                     )
                     HorizontalDivider(modifier = Modifier.weight(1f))
                 }
+
                 OutlinedButton(
                     onClick = { /* TODO: Handle Google login */ },
                     modifier = Modifier.fillMaxWidth(),
