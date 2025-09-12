@@ -1,0 +1,26 @@
+{
+  "name": "ayurvedic-traceability",
+  "version": "1.0.0",
+  "description": "Hyperledger Fabric chaincode for Ayurvedic herb traceability",
+  "main": "lib/ayurvedic-contract.js",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "scripts": {
+    "start": "node lib/ayurvedic-contract.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "fabric-contract-api": "^2.2.0",
+    "fabric-shim": "^2.2.0"
+  },
+  "keywords": [
+    "hyperledger",
+    "fabric",
+    "blockchain",
+    "ayurvedic",
+    "traceability"
+  ],
+  "author": "Ayurvedic Network Team",
+  "license": "Apache-2.0"
+}

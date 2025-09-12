@@ -1,0 +1,153 @@
+Organizations:
+  - &FarmersOrg
+    Name: FarmersOrgMSP
+    ID: FarmersOrgMSP
+    MSPDir: ../organizations/peerOrganizations/farmers.ayurvedic.com/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('FarmersOrgMSP.admin', 'FarmersOrgMSP.peer', 'FarmersOrgMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('FarmersOrgMSP.admin', 'FarmersOrgMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('FarmersOrgMSP.admin')"
+    AnchorPeers:
+      - Host: peer0.farmers.ayurvedic.com
+        Port: 7051
+
+  - &CollectorsOrg
+    Name: CollectorsOrgMSP
+    ID: CollectorsOrgMSP
+    MSPDir: ../organizations/peerOrganizations/collectors.ayurvedic.com/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('CollectorsOrgMSP.admin', 'CollectorsOrgMSP.peer', 'CollectorsOrgMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('CollectorsOrgMSP.admin', 'CollectorsOrgMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('CollectorsOrgMSP.admin')"
+    AnchorPeers:
+      - Host: peer0.collectors.ayurvedic.com
+        Port: 9051
+
+  - &LabsOrg
+    Name: LabsOrgMSP
+    ID: LabsOrgMSP
+    MSPDir: ../organizations/peerOrganizations/labs.ayurvedic.com/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('LabsOrgMSP.admin', 'LabsOrgMSP.peer', 'LabsOrgMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('LabsOrgMSP.admin', 'LabsOrgMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('LabsOrgMSP.admin')"
+    AnchorPeers:
+      - Host: peer0.labs.ayurvedic.com
+        Port: 11051
+
+Capabilities:
+  Channel: &ChannelCapabilities
+    V2_0: true
+  Orderer: &OrdererCapabilities
+    V2_0: true
+  Application: &ApplicationCapabilities
+    V2_0: true
+
+Application: &ApplicationDefaults
+  Organizations:
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+    LifecycleEndorsement:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Endorsement"
+    Endorsement:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Endorsement"
+  Capabilities:
+    <<: *ApplicationCapabilities
+
+Orderer: &OrdererDefaults
+  OrdererType: etcdraft
+  Addresses:
+    - orderer.ayurvedic.com:7050
+  EtcdRaft:
+    Consenters:
+    - Host: orderer.ayurvedic.com
+      Port: 7050
+      ClientTLSCert: ../organizations/ordererOrganizations/ayurvedic.com/orderers/orderer.ayurvedic.com/tls/server.crt
+      ServerTLSCert: ../organizations/ordererOrganizations/ayurvedic.com/orderers/orderer.ayurvedic.com/tls/server.crt
+  BatchTimeout: 2s
+  BatchSize:
+    MaxMessageCount: 10
+    AbsoluteMaxBytes: 99 MB
+    PreferredMaxBytes: 512 KB
+  Organizations:
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+    BlockValidation:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+
+Channel: &ChannelDefaults
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+  Capabilities:
+    <<: *ChannelCapabilities
+
+Profiles:
+  AyurvedicGenesis:
+    <<: *ChannelDefaults
+    Orderer:
+      <<: *OrdererDefaults
+      Organizations:
+        - *OrdererOrg
+      Capabilities:
+        <<: *OrdererCapabilities
+    Consortiums:
+      AyurvedicConsortium:
+        Organizations:
+          - *FarmersOrg
+          - *CollectorsOrg
+          - *LabsOrg
+
+  AyurvedicChannel:
+    Consortium: AyurvedicConsortium
+    <<: *ChannelDefaults
+    Application:
+      <<: *ApplicationDefaults
+      Organizations:
+        - *FarmersOrg
+        - *CollectorsOrg
+        - *LabsOrg
