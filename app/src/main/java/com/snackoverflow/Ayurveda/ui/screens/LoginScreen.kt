@@ -203,7 +203,12 @@ fun LoginScreen(modifier: Modifier) {
                         roles.forEachIndexed { index, role ->
                             val isSelected = (selectedRole == role)
                             Button(
-                                onClick = { selectedRole = role },
+                                onClick = {
+                                    selectedRole = role
+                                    if (role == "Viewer") {
+                                        uniqueId = ""
+                                    }
+                                },
                                 modifier = Modifier.weight(1f),
                                 shape = RectangleShape,
                                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
@@ -234,7 +239,8 @@ fun LoginScreen(modifier: Modifier) {
                     onValueChange = { uniqueId = it },
                     label = { Text("Unique Authentication ID") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    enabled = selectedRole != "Viewer"
                 )
             }
         }
