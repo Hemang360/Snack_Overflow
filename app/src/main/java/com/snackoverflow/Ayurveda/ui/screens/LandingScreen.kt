@@ -41,7 +41,7 @@ fun LandingScreen(modifier: Modifier) {
             )
         }
         item {
-            FeaturesSection()
+            DescriptionSection()
         }
     }
 }
@@ -57,9 +57,17 @@ fun HeroSection(onScanClicked: () -> Unit) {
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "Welcome to [Put Name]",
+            text = "Welcome to",
             fontFamily = kalniaFont,
             fontSize = 48.sp,
+            lineHeight = 52.sp,
+            color = darkGreen,
+            textAlign = TextAlign.Center
+        )
+        Text(
+            text = "Herb Abhilekh",
+            fontFamily = kalniaFont,
+            fontSize = 46.sp,
             lineHeight = 52.sp,
             color = darkGreen,
             textAlign = TextAlign.Center
@@ -101,45 +109,45 @@ fun HeroSection(onScanClicked: () -> Unit) {
 }
 
 @Composable
-fun FeaturesSection() {
+fun DescriptionSection() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(darkGreen)
-            .padding(horizontal = 24.dp, vertical = 48.dp),
+            .padding(horizontal = 32.dp, vertical = 48.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "More Than Just a Scanner",
+            text = "Transparency",
             fontFamily = kalniaFont,
             fontSize = 36.sp,
             color = lightGreen,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(40.dp))
-        FeatureItem(emoji = "⚡️", title = "Blazing Fast", description = "Reads any QR or barcode in a fraction of a second.")
-        Spacer(modifier = Modifier.height(24.dp))
-        FeatureItem(emoji = "📜", title = "Scan History", description = "Never lose a link with your complete, searchable history.")
-        Spacer(modifier = Modifier.height(24.dp))
-        FeatureItem(emoji = "🛡️", title = "Always Secure", description = "We check every link to protect you from malicious sites.")
-    }
-}
-
-@Composable
-fun FeatureItem(emoji: String, title: String, description: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = "$emoji $title",
-            fontFamily = golosFont,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = lightGreen
+            textAlign = TextAlign.Center,
+            letterSpacing = 1.8.sp
         )
         Text(
-            text = description,
+            text = "from Root to",
+            fontFamily = kalniaFont,
+            fontSize = 36.sp,
+            color = lightGreen,
+            textAlign = TextAlign.Center,
+            letterSpacing = 1.8.sp
+        )
+        Text(
+            text = "Remedy",
+            fontFamily = kalniaFont,
+            fontSize = 36.sp,
+            color = lightGreen,
+            textAlign = TextAlign.Center,
+            letterSpacing = 1.8.sp
+        )
+        Spacer(modifier = Modifier.height(32.dp))
+        Text(
+            text = "Go beyond the label. Our platform uses blockchain technology to create an unchangeable, transparent record of each herb's journey. Scan a product's QR code to instantly access its complete history—from cultivation details and harvest dates to processing methods and quality certifications.\n\nBy decentralizing this information, we remove the guesswork and replace it with verifiable truth. Join us in building a global, trusted ledger of botanical knowledge, ensuring purity and authenticity from source to supplement.",
             fontFamily = golosFont,
-            fontSize = 16.sp,
-            color = lightGreen.copy(alpha = 0.8f),
+            fontSize = 17.sp,
+            lineHeight = 26.sp,
+            color = lightGreen.copy(alpha = 0.85f),
             textAlign = TextAlign.Center
         )
     }

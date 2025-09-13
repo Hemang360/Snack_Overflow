@@ -1,5 +1,3 @@
-package com.snackoverflow.Ayurveda.ui.screens
-
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -14,6 +12,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -97,10 +96,12 @@ fun LoginScreenTheme(
 }
 
 @Composable
-fun LoginScreen() {
+fun LoginScreen(modifier: Modifier) {
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var isPasswordVisible by rememberSaveable { mutableStateOf(false) }
+    var selectedRole by rememberSaveable { mutableStateOf<String?>(null) }
+    var uniqueId by rememberSaveable { mutableStateOf("") }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -177,44 +178,64 @@ fun LoginScreen() {
                     Text(text = "LOGIN", modifier = Modifier.padding(vertical = 8.dp))
                 }
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 24.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    HorizontalDivider(modifier = Modifier.weight(1f))
-                    Text(
-                        text = "OR",
-                        modifier = Modifier.padding(horizontal = 8.dp),
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    HorizontalDivider(modifier = Modifier.weight(1f))
-                }
+                Spacer(modifier = Modifier.height(32.dp))
 
-                OutlinedButton(
-                    onClick = { /* TODO: Handle Google login */ },
+                Text(
+                    text = "LOGIN AS",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedCard(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(8.dp),
                 ) {
+                    val roles = listOf("Viewer", "Farmer", "Lab Official", "Distributor")
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(vertical = 4.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Min),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_google_logo),
-                            contentDescription = "Google logo",
-                            modifier = Modifier.size(24.dp),
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "Continue with Google",
-                            modifier = Modifier.padding(start = 16.dp),
-                            textAlign = TextAlign.Center
-                        )
+                        roles.forEachIndexed { index, role ->
+                            val isSelected = (selectedRole == role)
+                            Button(
+                                onClick = { selectedRole = role },
+                                modifier = Modifier.weight(1f),
+                                shape = RectangleShape,
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                    contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            ) {
+                                Text(
+                                    text = role,
+                                    fontSize = 12.sp,
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 16.sp
+                                )
+                            }
+
+                            if (index < roles.size - 1) {
+                                VerticalDivider()
+                            }
+                        }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = uniqueId,
+                    onValueChange = { uniqueId = it },
+                    label = { Text("Unique Authentication ID") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
             }
         }
     }
@@ -224,6 +245,6 @@ fun LoginScreen() {
 @Composable
 fun LoginScreenPreview() {
     LoginScreenTheme {
-        LoginScreen()
+        LoginScreen(modifier = Modifier)
     }
 }
