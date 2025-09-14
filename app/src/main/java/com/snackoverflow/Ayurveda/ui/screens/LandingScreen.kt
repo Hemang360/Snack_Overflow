@@ -1,12 +1,18 @@
 package com.snackoverflow.Ayurveda.ui.screens
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
@@ -16,6 +22,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.snackoverflow.Ayurveda.QrCodeScanner
 import com.snackoverflow.Ayurveda.R
 
 val lightGreen = Color(0xFFC0E1BB)
@@ -31,13 +38,39 @@ val golosFont = FontFamily(
 
 @Composable
 fun LandingScreen(modifier: Modifier) {
+    var showScanner by remember { mutableStateOf(false) }
+    var scannedCode by remember { mutableStateOf<String?>(null) }
+
+    if (showScanner) {
+        // Show the scanner and handle the result
+        QrCodeScanner { qrCode ->
+            scannedCode = qrCode
+            showScanner = false // Hide scanner after a successful scan
+        }
+    } else {
+        // Show the button and the result
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Button(onClick = { showScanner = true }) {
+                Text("Scan QR Code")
+            }
+            scannedCode?.let {
+                Text(text = "Scanned Code: $it")
+            }
+        }
+    }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         item {
             HeroSection(
-                onScanClicked = { }
+                onScanClicked = {
+                    showScanner = true
+                }
             )
         }
         item {

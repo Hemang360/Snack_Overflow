@@ -24,7 +24,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             LoginScreenTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    HerbActionScreen(modifier = Modifier.padding(innerPadding))
+                    LandingScreen(modifier = Modifier.padding(innerPadding))
                 }
             }
         }

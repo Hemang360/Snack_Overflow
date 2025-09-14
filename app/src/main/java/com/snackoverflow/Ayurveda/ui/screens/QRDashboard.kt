@@ -1,6 +1,5 @@
 package com.snackoverflow.Ayurveda.ui.screens
 
-import android.R.attr.onClick
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -12,12 +11,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.snackoverflow.Ayurveda.R
 
 val lightGreenBg = Color(0xFFC0E1BB)
 val darkGreenText = Color(0xFF1F261D)
@@ -39,8 +36,8 @@ fun HerbActionScreen(modifier: Modifier) {
                 text = "View Herb Info",
                 icon = {
                     Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Log Data into Blockchain",
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "View Blockchain Data",
                         modifier = Modifier.size(44.dp),
                         tint = darkGreenText
                     )
