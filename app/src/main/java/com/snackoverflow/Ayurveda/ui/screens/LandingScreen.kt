@@ -12,7 +12,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
@@ -45,6 +44,9 @@ fun LandingScreen(modifier: Modifier) {
         QrCodeScanner(
             onQrCodeScanned = { qrCode ->
                 scannedCode = qrCode
+                showScanner = false
+            },
+            onNavigateBack = {
                 showScanner = false
             }
         )
