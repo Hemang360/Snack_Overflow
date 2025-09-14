@@ -1,5 +1,6 @@
 package com.snackoverflow.Ayurveda.ui.screens
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -45,6 +46,7 @@ fun LandingScreen(modifier: Modifier) {
             onQrCodeScanned = { qrCode ->
                 scannedCode = qrCode
                 showScanner = false
+                Log.d("LandingScreen", "Scanned QR Code: $qrCode")
             },
             onNavigateBack = {
                 showScanner = false
