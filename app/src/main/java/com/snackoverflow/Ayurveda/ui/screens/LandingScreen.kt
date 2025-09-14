@@ -42,42 +42,54 @@ fun LandingScreen(modifier: Modifier) {
     var scannedCode by remember { mutableStateOf<String?>(null) }
 
     if (showScanner) {
-        // Show the scanner and handle the result
-        QrCodeScanner { qrCode ->
-            scannedCode = qrCode
-            showScanner = false // Hide scanner after a successful scan
-        }
+        QrCodeScanner(
+            onQrCodeScanned = { qrCode ->
+                scannedCode = qrCode
+                showScanner = false
+            }
+        )
     } else {
-        // Show the button and the result
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Center,
+        LazyColumn(
+            modifier = modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Button(onClick = { showScanner = true }) {
-                Text("Scan QR Code")
+            item {
+                HeroSection(
+                    onScanClicked = {
+                        showScanner = true
+                    }
+                )
             }
-            scannedCode?.let {
-                Text(text = "Scanned Code: $it")
+            item {
+                DescriptionSection()
             }
-        }
-    }
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        item {
-            HeroSection(
-                onScanClicked = {
-                    showScanner = true
+            scannedCode?.let { code ->
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Last Scanned Code:",
+                            fontFamily = golosFont,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = code,
+                            fontFamily = golosFont,
+                            fontSize = 16.sp,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
                 }
-            )
-        }
-        item {
-            DescriptionSection()
+            }
         }
     }
 }
+
 
 @Composable
 fun HeroSection(onScanClicked: () -> Unit) {
