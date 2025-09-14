@@ -13,6 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.snackoverflow.Ayurveda.ui.screens.HerbActionScreen
 import com.snackoverflow.Ayurveda.ui.screens.LandingScreen
 import com.snackoverflow.Ayurveda.ui.theme.AyurvedaBlockChainTheme
 
@@ -23,7 +24,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             LoginScreenTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    LoginScreen(modifier = Modifier.padding(innerPadding))
+                    HerbActionScreen(modifier = Modifier.padding(innerPadding))
                 }
             }
         }
