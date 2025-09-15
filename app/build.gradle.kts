@@ -42,13 +42,28 @@ android {
 }
 
 dependencies {
+
     // Import the Firebase BoM
     implementation(platform("com.google.firebase:firebase-bom:34.2.0"))
 
     //Authentication
     implementation("com.google.firebase:firebase-auth")
+
     // When using the BoM, don't specify versions in Firebase dependencies
     implementation("com.google.firebase:firebase-analytics")
+
+    // CameraX
+    val cameraxVersion = "1.5.0"
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
+
+    // ML Kit Barcode Scanning
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+
+    // Accompanist for Permissions (makes permission handling in Compose easier)
+    implementation("com.google.accompanist:accompanist-permissions:0.34.0")
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
