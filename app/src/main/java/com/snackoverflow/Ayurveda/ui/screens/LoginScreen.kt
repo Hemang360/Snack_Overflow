@@ -178,7 +178,30 @@ fun LoginScreen(modifier: Modifier) {
                     Text(text = "LOGIN", modifier = Modifier.padding(vertical = 8.dp))
                 }
 
-                Spacer(modifier = Modifier.height(32.dp))
+                // SIGN UP OPTION ADDED HERE
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Don't have an account?",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    TextButton(onClick = { /* TODO: Handle navigation to sign up screen */ }) {
+                        Text(
+                            text = "Sign Up",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                // END OF ADDED CODE
+
+                Spacer(modifier = Modifier.height(24.dp)) // Adjusted spacer for better balance
 
                 Text(
                     text = "LOGIN AS",
