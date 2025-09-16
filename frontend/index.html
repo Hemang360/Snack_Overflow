@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌿 Ayurvedic Blockchain Traceability System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2c5530;
+            --secondary-color: #4CAF50;
+            --accent-color: #8BC34A;
+            --text-color: #333;
+            --bg-color: #f8f9fa;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .navbar {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .navbar-brand {
+            font-weight: bold;
+            font-size: 1.5rem;
+        }
+
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--secondary-color), var(--accent-color));
+            border: none;
+            border-radius: 25px;
+            padding: 10px 25px;
+            font-weight: 600;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            transform: translateY(-2px);
+        }
+
+        .role-card {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 3px solid transparent;
+        }
+
+        .role-card:hover {
+            border-color: var(--secondary-color);
+            transform: scale(1.05);
+        }
+
+        .role-card.selected {
+            border-color: var(--primary-color);
+            background: linear-gradient(135deg, #e8f5e8, #f0f8f0);
+        }
+
+        .api-endpoint {
+            background: #f8f9fa;
+            border-left: 4px solid var(--secondary-color);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+
+        .response-box {
+            background: #2d3748;
+            color: #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .qr-scanner {
+            background: #f8f9fa;
+            border: 2px dashed var(--secondary-color);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--secondary-color);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 30px;
+            padding-left: 30px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -8px;
+            top: 0;
+            width: 16px;
+            height: 16px;
+            background: var(--secondary-color);
+            border-radius: 50%;
+            border: 3px solid white;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--secondary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert-custom {
+            border: none;
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin: 10px 0;
+        }
+
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 10px 0;
+        }
+
+        .stats-number {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-leaf"></i> Ayurvedic Blockchain
+            </a>
+            <div class="navbar-nav ms-auto">
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-user"></i> <span id="currentUser">Guest</span>
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" onclick="logout()">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container mt-4">
+        <!-- Welcome Section -->
+        <div id="welcomeSection" class="text-center mb-5">
+            <h1 class="display-4 mb-3">🌿 Ayurvedic Blockchain Traceability</h1>
+            <p class="lead">Complete supply chain transparency from farm to consumer</p>
+            
+            <!-- Role Selection -->
+            <div class="row mt-5">
+                <div class="col-md-3 mb-3">
+                    <div class="card role-card" onclick="selectRole('admin')">
+                        <div class="card-body text-center">
+                            <i class="fas fa-crown fa-3x text-warning mb-3"></i>
+                            <h5>Administrator</h5>
+                            <p class="text-muted">Full system access</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card role-card" onclick="selectRole('collector')">
+                        <div class="card-body text-center">
+                            <i class="fas fa-seedling fa-3x text-success mb-3"></i>
+                            <h5>Collector</h5>
+                            <p class="text-muted">Herb collection</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card role-card" onclick="selectRole('lab')">
+                        <div class="card-body text-center">
+                            <i class="fas fa-flask fa-3x text-info mb-3"></i>
+                            <h5>Laboratory</h5>
+                            <p class="text-muted">Quality testing</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card role-card" onclick="selectRole('manufacturer')">
+                        <div class="card-body text-center">
+                            <i class="fas fa-industry fa-3x text-primary mb-3"></i>
+                            <h5>Manufacturer</h5>
+                            <p class="text-muted">Product processing</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Consumer Access -->
+            <div class="row mt-4">
+                <div class="col-md-6 offset-md-3">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <i class="fas fa-qrcode fa-3x text-secondary mb-3"></i>
+                            <h5>Consumer QR Scanner</h5>
+                            <p class="text-muted">Scan QR codes to trace products</p>
+                            <button class="btn btn-primary" onclick="showQRScanner()">
+                                <i class="fas fa-camera"></i> Scan QR Code
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Login Section -->
+        <div id="loginSection" class="hidden">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header text-center">
+                            <h4><i class="fas fa-sign-in-alt"></i> Login as <span id="selectedRole"></span></h4>
+                        </div>
+                        <div class="card-body">
+                            <form id="loginForm">
+                                <div class="mb-3">
+                                    <label for="username" class="form-label">Username</label>
+                                    <input type="text" class="form-control" id="username" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="password" class="form-label">Password</label>
+                                    <input type="password" class="form-control" id="password" required>
+                                </div>
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-sign-in-alt"></i> Login
+                                    </button>
+                                </div>
+                            </form>
+                            <div class="text-center mt-3">
+                                <p class="text-muted">Don't have an account? <a href="#" onclick="showRegister()">Register here</a></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Register Section -->
+        <div id="registerSection" class="hidden">
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header text-center">
+                            <h4><i class="fas fa-user-plus"></i> Register New User</h4>
+                        </div>
+                        <div class="card-body">
+                            <form id="registerForm">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="regUsername" class="form-label">Username</label>
+                                            <input type="text" class="form-control" id="regUsername" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="regEmail" class="form-label">Email</label>
+                                            <input type="email" class="form-control" id="regEmail" required>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="regPassword" class="form-label">Password</label>
+                                            <input type="password" class="form-control" id="regPassword" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="regFullName" class="form-label">Full Name</label>
+                                            <input type="text" class="form-control" id="regFullName" required>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="regOrgType" class="form-label">Organization Type</label>
+                                    <select class="form-control" id="regOrgType" required>
+                                        <option value="">Select Organization Type</option>
+                                        <option value="cooperative">Cooperative</option>
+                                        <option value="lab">Laboratory</option>
+                                        <option value="processor">Processor</option>
+                                        <option value="manufacturer">Manufacturer</option>
+                                        <option value="government">Government</option>
+                                    </select>
+                                </div>
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-user-plus"></i> Register
+                                    </button>
+                                </div>
+                            </form>
+                            <div class="text-center mt-3">
+                                <p class="text-muted">Already have an account? <a href="#" onclick="showLogin()">Login here</a></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Section -->
+        <div id="dashboardSection" class="hidden">
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <h2>Dashboard - <span id="dashboardRole"></span></h2>
+                </div>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="row mb-4" id="statsCards">
+                <!-- Stats will be loaded here -->
+            </div>
+
+            <!-- Role-specific Content -->
+            <div id="roleContent">
+                <!-- Content will be loaded based on role -->
+            </div>
+        </div>
+
+        <!-- QR Scanner Section -->
+        <div id="qrScannerSection" class="hidden">
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header text-center">
+                            <h4><i class="fas fa-qrcode"></i> QR Code Scanner</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="qr-scanner">
+                                <i class="fas fa-qrcode fa-4x text-muted mb-3"></i>
+                                <h5>Scan QR Code or Enter Manually</h5>
+                                <div class="input-group mb-3">
+                                    <input type="text" class="form-control" id="qrCodeInput" placeholder="Enter QR Code">
+                                    <button class="btn btn-primary" onclick="verifyQR()">
+                                        <i class="fas fa-search"></i> Verify
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="qrResult"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- API Testing Section -->
+        <div id="apiTestingSection" class="hidden">
+            <div class="row">
+                <div class="col-md-12">
+                    <h3><i class="fas fa-code"></i> API Testing Console</h3>
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h5>Available Endpoints</h5>
+                                    <div id="endpointsList"></div>
+                                </div>
+                                <div class="col-md-6">
+                                    <h5>Response</h5>
+                                    <div id="apiResponse" class="response-box">
+                                        <div class="text-muted">Select an endpoint to test...</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Response Alerts -->
+        <div id="alertContainer"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

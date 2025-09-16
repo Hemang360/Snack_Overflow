@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>JavaScript Test</title>
+</head>
+<body>
+    <h1>JavaScript Test Page</h1>
+    <button onclick="testFunction()">Test Click</button>
+    <div id="result"></div>
+    
+    <script>
+        function testFunction() {
+            document.getElementById('result').innerHTML = 'JavaScript is working!';
+        }
+        
+        // Test if app loads
+        setTimeout(() => {
+            if (typeof app !== 'undefined') {
+                document.getElementById('result').innerHTML += '<br>App loaded successfully!';
+            } else {
+                document.getElementById('result').innerHTML += '<br>App not loaded';
+            }
+        }, 1000);
+    </script>
+    
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Hyperledger Fabric
+wallet/
+identity/
+crypto-config/
+channel-artifacts/
+system-genesis-block/
+*.tx
+*.block
+*.tar.gz
+organizations
+server-node-sdk
+# Build outputs
+dist/
+build/
+out/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Uploads
+uploads/
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.pdf
+
+# Logs
+logs/
+*.pid
+api.log
+portal.log
+
+# Certificates
+*.pem
+*.key
+*.crt
+
+# Backup files
+*.bak
+backup/
+
+# Python
+__pycache__/
+*.pyc
+.Python
+
+# Temporary files
+tmp/
+temp/
+.tmp/
