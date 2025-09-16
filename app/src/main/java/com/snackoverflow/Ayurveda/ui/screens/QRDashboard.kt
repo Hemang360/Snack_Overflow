@@ -15,12 +15,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import com.snackoverflow.Ayurveda.ui.navigation.Screen
 
 val lightGreenBg = Color(0xFFC0E1BB)
 val darkGreenText = Color(0xFF1F261D)
 
 @Composable
-fun HerbActionScreen(modifier: Modifier) {
+fun HerbActionScreen(navController: NavController) {
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = lightGreenBg
@@ -42,7 +44,9 @@ fun HerbActionScreen(modifier: Modifier) {
                         tint = darkGreenText
                     )
                 },
-                onClick = { /* TODO: Add navigation or action for viewing herb info */ }
+                onClick = {
+                    navController.navigate(Screen.Record.route)
+                }
             )
             Spacer(modifier = Modifier.height(20.dp))
 
@@ -104,5 +108,5 @@ fun ActionButton(
 @Preview(showBackground = true, device = "id:pixel_6")
 @Composable
 fun HerbActionScreenPreview() {
-    HerbActionScreen(modifier = Modifier)
+    //HerbActionScreen()
 }

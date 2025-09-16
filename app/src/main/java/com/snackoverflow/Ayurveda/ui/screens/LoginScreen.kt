@@ -71,8 +71,8 @@ val LoginTypography = Typography(
     )
 )
 
-private val LightGreen = Color(0xFFC0E1BB)
-private val DarkGreen = Color(0xFF1F261D)
+val LightGreen = Color(0xFFC0E1BB)
+val DarkGreen = Color(0xFF1F261D)
 
 private val LoginColorScheme = lightColorScheme(
     primary = DarkGreen,
@@ -96,7 +96,7 @@ fun LoginScreenTheme(
 }
 
 @Composable
-fun LoginScreen(modifier: Modifier) {
+fun LoginScreen() {
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var isPasswordVisible by rememberSaveable { mutableStateOf(false) }
@@ -274,6 +274,6 @@ fun LoginScreen(modifier: Modifier) {
 @Composable
 fun LoginScreenPreview() {
     LoginScreenTheme {
-        LoginScreen(modifier = Modifier)
+        LoginScreen()
     }
 }
