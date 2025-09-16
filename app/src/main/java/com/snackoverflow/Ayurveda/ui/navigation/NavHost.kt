@@ -21,7 +21,7 @@ fun HerbAbhilekh() {
     val navController = rememberNavController()
     NavHost(
         navController = navController,
-        startDestination = Screen.Dashboard
+        startDestination = Screen.Dashboard.route
     ) {
         composable(Screen.Record.route) {
             RecordScreen(sharedRecordViewMode,navController)

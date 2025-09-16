@@ -21,6 +21,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.snackoverflow.Ayurveda.viewmodel.SharedRecordViewModel
 import androidx.compose.runtime.collectAsState
 import androidx.navigation.NavController
+import com.snackoverflow.Ayurveda.ui.navigation.Screen
 
 data class HerbBatchRecord(
     val herbBatchId: String,
@@ -81,7 +82,9 @@ fun RecordScreen(
             topBar = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(
-                        onClick = {/*TODO : Handle App Navigation*/}
+                        onClick = {
+                            navController.navigate(Screen.Dashboard.route)
+                        }
                     ) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
