@@ -76,31 +76,22 @@ export function QRScanner() {
         return
       }
       
-      // Fetch product data
-      const response = await batchAPI.get(batchId)
-      const productData = response.data.productBatch
-      
       // Add to scan history
       const scanData = {
         qrData,
         batchId,
-        productData,
         timestamp: new Date().toISOString(),
       }
       
       addToHistory(scanData)
       setScannedData(scanData)
       
-      // Navigate to product story
-      navigate(`/product/${batchId}`)
+      // Navigate to public product view (no login required)
+      navigate(`/public/product/${batchId}`)
       
     } catch (error) {
       console.error('Scan error:', error)
-      if (error.response?.status === 404) {
-        toast.error('Product not found. Please check the QR code.')
-      } else {
-        toast.error('Failed to fetch product information')
-      }
+      toast.error('Failed to process QR code')
     } finally {
       setIsScanning(false)
     }

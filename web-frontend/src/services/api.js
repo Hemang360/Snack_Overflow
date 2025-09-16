@@ -114,4 +114,9 @@ export const publicAPI = {
   getOpenAPI: () => api.get('/api/openapi.json'),
 }
 
+// Public Batch API (no auth required)
+export const publicBatchAPI = {
+  getTraceability: (batchId) => api.get(`/api/public/traceability/${batchId}`),
+}
+
 export default api

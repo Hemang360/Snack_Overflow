@@ -5,6 +5,8 @@ import { HomePage } from './pages/HomePage'
 import { ConsumerPortal } from './pages/ConsumerPortal'
 import { QRScanner } from './pages/QRScanner'
 import { ProductStory } from './pages/ProductStory'
+import { PublicProductView } from './pages/PublicProductView'
+import { DataUploadPage } from './pages/DataUploadPage'
 import { RegulatorDashboard } from './pages/RegulatorDashboard'
 import { StakeholderDashboard } from './pages/StakeholderDashboard'
 import { BlockchainExplorer } from './pages/BlockchainExplorer'
@@ -36,6 +38,8 @@ function App() {
         <Route path="/consumer" element={<ConsumerPortal />} />
         <Route path="/scan" element={<QRScanner />} />
         <Route path="/product/:batchId" element={<ProductStory />} />
+        <Route path="/public/product/:batchId" element={<PublicProductView />} />
+        <Route path="/upload-data" element={<DataUploadPage />} />
         <Route path="/regulator" element={<RegulatorDashboard />} />
         <Route path="/stakeholder" element={<StakeholderDashboard />} />
         <Route path="/explorer" element={<BlockchainExplorer />} />

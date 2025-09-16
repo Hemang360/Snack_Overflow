@@ -14,7 +14,7 @@ export function LoginPage() {
     password: ''
   })
   
-  const from = location.state?.from?.pathname || '/stakeholder'
+  const from = location.state?.from?.pathname || new URLSearchParams(location.search).get('returnUrl') || '/stakeholder'
   
   const handleSubmit = async (e) => {
     e.preventDefault()
