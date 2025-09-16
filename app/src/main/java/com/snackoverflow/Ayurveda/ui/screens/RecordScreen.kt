@@ -17,7 +17,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.intellij.lang.annotations.JdkConstants
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.snackoverflow.Ayurveda.viewmodel.SharedRecordViewModel
+import androidx.compose.runtime.collectAsState
+import androidx.navigation.NavController
 
 data class HerbBatchRecord(
     val herbBatchId: String,
@@ -49,10 +52,18 @@ data class LabResult(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecordScreen(
-    herbBatchRecord: HerbBatchRecord,
-    medicalRecord: MedicalRecord,
-    labResult: LabResult
+    sharedViewModel: SharedRecordViewModel = viewModel(),
+    navController: NavController
+//    herbBatchRecord: HerbBatchRecord,
+//    medicalRecord: MedicalRecord,
+//    labResult: LabResult
 ) {
+    // Extract Data from ViewModel
+    val herbBatchRecord = sharedViewModel.uiState.collectAsState().value.herbBatchRecord
+    val medicalRecord = sharedViewModel.uiState.collectAsState().value.medicalRecord
+    val labResult = sharedViewModel.uiState.collectAsState().value.labResult
+
+
     // Apply the custom theme colors and typography
     MaterialTheme(
         colorScheme = lightColorScheme(
@@ -120,36 +131,37 @@ fun RecordScreen(
 }
 
 @Composable
-fun HerbBatchRecordCard(record: HerbBatchRecord) {
+fun HerbBatchRecordCard(record: HerbBatchRecord?) {
     InfoCard(title = "Patient Details") {
-        InfoRow(label = "Batch ID", value = record.herbBatchId)
-        InfoRow(label = "Name", value = record.name)
-        InfoRow(label = "Date of Birth", value = record.dob)
-        InfoRow(label = "City", value = record.city)
-        InfoRow(label = "Authorized Collectors", value = record.authorizedCollectors.joinToString())
+        InfoRow(label = "Batch ID", value = record?.herbBatchId ?: "loading")
+        InfoRow(label = "Name", value = record?.name ?: "loading")
+        InfoRow(label = "Date of Birth", value = record?.dob ?: "loading")
+        InfoRow(label = "City", value = record?.city ?: "loading")
+        InfoRow(label = "Authorized Collectors", value = record?.authorizedCollectors?.joinToString()
+            ?: "loading")
     }
 }
 
 @Composable
-fun MedicalRecordCard(record: MedicalRecord) {
+fun MedicalRecordCard(record: MedicalRecord?) {
     InfoCard(title = "Medical Record") {
-        InfoRow(label = "Record ID", value = record.recordId)
-        InfoRow(label = "Collector ID", value = record.collectorId)
-        InfoRow(label = "Diagnosis", value = record.diagnosis)
-        InfoRow(label = "Prescription", value = record.prescription)
-        InfoRow(label = "Timestamp", value = record.timestamp)
+        InfoRow(label = "Record ID", value = record?.recordId ?: "loading")
+        InfoRow(label = "Collector ID", value = record?.collectorId ?: "loading")
+        InfoRow(label = "Diagnosis", value = record?.diagnosis ?: "loading")
+        InfoRow(label = "Prescription", value = record?.prescription ?: "loading")
+        InfoRow(label = "Timestamp", value = record?.timestamp ?: "loading")
     }
 }
 
 @Composable
-fun LabResultCard(result: LabResult) {
+fun LabResultCard(result: LabResult?) {
     InfoCard(title = "Lab Result") {
-        InfoRow(label = "Result ID", value = result.labResultId)
-        InfoRow(label = "Lab Agent ID", value = result.labAgentId)
-        InfoRow(label = "Test Type", value = result.testType)
-        InfoRow(label = "Test Results", value = result.testResults)
-        InfoRow(label = "Notes", value = result.notes)
-        InfoRow(label = "Timestamp", value = result.timestamp)
+        InfoRow(label = "Result ID", value = result?.labResultId ?: "loading")
+        InfoRow(label = "Lab Agent ID", value = result?.labAgentId ?: "loading")
+        InfoRow(label = "Test Type", value = result?.testType ?: "loading")
+        InfoRow(label = "Test Results", value = result?.testResults ?: "loading")
+        InfoRow(label = "Notes", value = result?.notes ?: "loading")
+        InfoRow(label = "Timestamp", value = result?.timestamp ?: "loading")
     }
 }
 
@@ -231,9 +243,9 @@ fun RecordScreenPreview() {
         timestamp = "2024-01-01T11:00:00Z"
     )
 
-    RecordScreen(
-        herbBatchRecord = herbBatchRecord,
-        medicalRecord = medicalRecord,
-        labResult = labResult
-    )
+//    RecordScreen(
+//        herbBatchRecord = herbBatchRecord,
+//        medicalRecord = medicalRecord,
+//        labResult = labResult
+//    )
 }

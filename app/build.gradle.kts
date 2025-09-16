@@ -65,6 +65,8 @@ dependencies {
     // Accompanist for Permissions (makes permission handling in Compose easier)
     implementation("com.google.accompanist:accompanist-permissions:0.34.0")
 
+    // Navigation
+    implementation("androidx.navigation:navigation-compose:2.9.4")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

@@ -37,7 +37,7 @@ val golosFont = FontFamily(
 )
 
 @Composable
-fun LandingScreen(modifier: Modifier) {
+fun LandingScreen() {
     var showScanner by remember { mutableStateOf(false) }
     var scannedCode by remember { mutableStateOf<String?>(null) }
 
@@ -54,7 +54,7 @@ fun LandingScreen(modifier: Modifier) {
         )
     } else {
         LazyColumn(
-            modifier = modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             item {
@@ -206,6 +206,6 @@ fun DescriptionSection() {
 @Composable
 fun LandingScreenPreview() {
     MaterialTheme {
-        LandingScreen(modifier = Modifier)
+        //LandingScreen()
     }
 }

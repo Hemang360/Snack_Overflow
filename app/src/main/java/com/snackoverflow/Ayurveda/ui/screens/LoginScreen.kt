@@ -96,7 +96,7 @@ fun LoginScreenTheme(
 }
 
 @Composable
-fun LoginScreen(modifier: Modifier) {
+fun LoginScreen() {
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var isPasswordVisible by rememberSaveable { mutableStateOf(false) }
@@ -274,6 +274,6 @@ fun LoginScreen(modifier: Modifier) {
 @Composable
 fun LoginScreenPreview() {
     LoginScreenTheme {
-        LoginScreen(modifier = Modifier)
+        LoginScreen()
     }
 }
