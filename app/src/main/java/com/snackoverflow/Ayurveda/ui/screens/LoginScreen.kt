@@ -71,8 +71,8 @@ val LoginTypography = Typography(
     )
 )
 
-private val LightGreen = Color(0xFFC0E1BB)
-private val DarkGreen = Color(0xFF1F261D)
+val LightGreen = Color(0xFFC0E1BB)
+val DarkGreen = Color(0xFF1F261D)
 
 private val LoginColorScheme = lightColorScheme(
     primary = DarkGreen,
