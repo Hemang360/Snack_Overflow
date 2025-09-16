@@ -1,5 +1,3 @@
-
-
 /*
  * Copyright IBM Corp. All Rights Reserved.
  *
@@ -15,319 +13,385 @@ const { Contract } = require('fabric-contract-api');
 
 class ehrChainCode extends Contract {
 
-
-    //   1. Goverment - network owner - admin access
-    //     2. Cooperative - Network orgination - Read/Write (collector data)
-    //     3. Practicing physician/Collector - Read/Write (Herbbatch data w.r.t to cooperative)
-    //     4. Diagnostics center - Read/Write (Herbbatch records w.r.t to diagnostics center)
-    //     5. Pharmacies - Read/Write (Herbbatch prescriptions w.r.t to pharma center)
-    //     6. Researchers / R&D - Read data of cooperative conect, pateint based on consent.
-    //     7. Lab companies - Read/Write (Herbbatch claims)
-    //     8. Herbbatch - Read/Write (All generated herbbatch data)
-
-    // data structure if herbbatch
-
-    // herbbatch-001: [{
-    //     "herbbatchId": "P001",
-    //     "name": "John Doe",
-    //     "dob": "1990-01-01",
-    //     "authorizedCollectors": ["D001", "D002"]
-    //  }]
-
-    // "record-001":[
-    //         {
-    //         "recordId": "R001",
-    //         "collectorId": "D001",
-    //         "diagnosis": "Flu",
-    //         "prescription": "Rest and hydration",
-    //         "timestamp": "2024-01-01T10:00:00Z"
-    //         }
-    //     ],
-
-    // generate recordId.
+    // Generate unique record ID
     recordIdGenerator(ctx){
-        const txId = ctx.stub.getTxID();  // always unique per transaction
-         return `record-${txId}`;
-    }
-
-    // onboard collector in ledger by cooperative
-    async onboardCollector(ctx, args) {
-
-        const { collectorId, cooperativeName, name, city } = JSON.parse(args);
-        console.log("ARGS-RAW:",args)
-        console.log("ARGS:",collectorId, cooperativeName, name, city)
-        const { role, uuid: callerId } = this.getCallerAttributes(ctx);
-        const orgMSP = ctx.clientIdentity.getMSPID();
-
-        if (orgMSP !== 'Org1MSP' || role !== 'cooperative') {
-            throw new Error('Only cooperative can onboard collector.');
-        }
-
-        const collectorJSON = await ctx.stub.getState(collectorId);
-        if (collectorJSON && collectorJSON.length > 0) {
-            throw new Error(`Collector ${collectorId} already registerd by ${callerId}`);
-        }
-
-        const recordId = this.recordIdGenerator(ctx);
-        console.log("Record ID", recordId);
-
-        const record = {
-            recordId,
-            collectorId,
-            cooperativeId: callerId,
-            name,
-            cooperativeName,
-            city,
-           timestamp: ctx.stub.getTxTimestamp().seconds.low.toString()
-        };
-
-        const result = await ctx.stub.putState(collectorId, Buffer.from(stringify(record)));
-        console.log('ONBOARD COLLECTOR RESULT:',stringify(result))
-        return stringify(record);
-    }
-
-      // onboard lab agent by lab company
-    async onboardLabAgent(ctx, args){
-        const {agentId, labCompany, name, city} = JSON.parse(args);
-        console.log("ARGS-RAW:",args)
-        console.log("ARGS-split 4:",agentId, labCompany, name, city)
-        const { role, uuid: callerId } = this.getCallerAttributes(ctx);
-         const orgMSP = ctx.clientIdentity.getMSPID();
-
-        if (orgMSP !== 'Org2MSP' || role !== 'labAdmin') {
-            throw new Error('Only lab org admin can onbord lab agent');
-        }
-
-        const labJSON = await ctx.stub.getState(agentId);
-        console.log("LAB DATA",labJSON)
-        if (labJSON && labJSON.length > 0) {
-            throw new Error(`lab ${agentId} already registerd by ${callerId}`);
-        }
-
-        const recordId = this.recordIdGenerator(ctx);
-        console.log("Record ID", recordId);
-
-        const record = {
-            recordId,
-            agentId,
-            labId: callerId,
-            name,
-            labCompany,
-            city,
-            timestamp: ctx.stub.getTxTimestamp().seconds.low.toString()
-        };
-
-        await ctx.stub.putState(agentId, Buffer.from(stringify(record)));
-        return stringify(record);
-    }
-
-    // this function
-   async grantAccess(ctx, args) {
-    const {herbbatchId, collectorIdToGrant} = JSON.parse(args);
-    console.log("ARGS-RWA", args)
-    console.log("ARGS", herbbatchId, collectorIdToGrant)
-
-     const { role, uuid: callerId } = this.getCallerAttributes(ctx);
-
-        if (role !== 'herbbatch') {
-            throw new Error('Only herbbatches can grant access');
-        }
-
-        if (callerId !== herbbatchId) {
-            throw new Error('Caller is not the owner of this herbbatch record');
-        }
-
-        const herbbatchJSON = await ctx.stub.getState(herbbatchId);
-        if (!herbbatchJSON || herbbatchJSON.length === 0) {
-            throw new Error(`Herbbatch ${herbbatchId} not found`);
-        }
-
-        const herbbatch = JSON.parse(herbbatchJSON.toString());
-
-        if (herbbatch.authorizedCollectors.includes(collectorIdToGrant)) {
-            throw new Error(`Collector ${collectorIdToGrant} already authorized`);
-        }
-
-        herbbatch.authorizedCollectors.push(collectorIdToGrant);
-        await ctx.stub.putState(herbbatchId, Buffer.from(stringify(herbbatch)));
-
-        return `Access granted to collector ${collectorIdToGrant}`;
+        const txId = ctx.stub.getTxID();
+        return `record-${txId}`;
     }
 
     getCallerAttributes(ctx) {
-      const role = ctx.clientIdentity.getAttributeValue('role');
-      const uuid = ctx.clientIdentity.getAttributeValue('uuid');
+        const role = ctx.clientIdentity.getAttributeValue('role');
+        const uuid = ctx.clientIdentity.getAttributeValue('uuid');
 
-      if (!role || !uuid) {
-          throw new Error('Missing role or uuid in client certificate');
-      }
+        if (!role || !uuid) {
+            throw new Error('Missing role or uuid in client certificate');
+        }
 
-      return { role, uuid };
+        return { role, uuid };
     }
 
-     // add record | only collector can add record
-     // 1. first herbbatch need to grand access to collector to add record.
-    // async addRecord(ctx, herbbatchId, recordId, diagnosis, prescription) {
-    //     const { role, uuid: callerId } = this.getCallerAttributes(ctx);
+    // Register collector with login credentials - creates blockchain entry
+    async registerCollector(ctx, args) {
+        const { collectorId, cooperativeName, name, city, password, specialization } = JSON.parse(args);
+        console.log("ARGS-RAW:", args);
+        console.log("ARGS:", collectorId, cooperativeName, name, city, specialization);
 
-    //     if (role !== 'collector') {
-    //         throw new Error('Only collectors can add records');
-    //     }
+        const { role, uuid: callerId } = this.getCallerAttributes(ctx);
+        const orgMSP = ctx.clientIdentity.getMSPID();
 
-    //     const herbbatchJSON = await ctx.stub.getState(herbbatchId);
-    //     if (!herbbatchJSON || herbbatchJSON.length === 0) {
-    //         throw new Error(`Herbbatch ${herbbatchId} not found`);
-    //     }
+        // Only cooperative can register collectors
+        if (orgMSP !== 'Org1MSP' || role !== 'cooperative') {
+            throw new Error('Only cooperative can register collectors.');
+        }
 
-    //     const herbbatch = JSON.parse(herbbatchJSON.toString());
+        // Check if collector already exists
+        const collectorKey = ctx.stub.createCompositeKey('collector', [collectorId]);
+        const existingCollector = await ctx.stub.getState(collectorKey);
+        if (existingCollector && existingCollector.length > 0) {
+            throw new Error(`Collector ${collectorId} already registered`);
+        }
 
-    //     if (!herbbatch.authorizedCollectors.includes(callerId)) {
-    //         throw new Error(`Collector ${callerId} is not authorized`);
-    //     }
+        const recordId = this.recordIdGenerator(ctx);
+        const timestamp = new Date(ctx.stub.getTxTimestamp().seconds.low * 1000).toISOString();
 
-    //     const record = {
-    //         recordId,
-    //         collectorId: callerId,
-    //         diagnosis,
-    //         prescription,
-    //        timestamp: ctx.stub.getTxTimestamp().seconds.low.toString()
-    //     };
+        // Create collector record with login credentials
+        const collectorRecord = {
+            recordId,
+            collectorId,
+            cooperativeId: callerId,
+            cooperativeName,
+            name,
+            city,
+            specialization: specialization || '',
+            password, // In production, this should be hashed
+            status: 'active',
+            registeredAt: timestamp,
+            lastLogin: null
+        };
 
-    //     herbbatch.records.push(record);
-    //     await ctx.stub.putState(herbbatchId, Buffer.from(stringify(herbbatch)));
+        // Store collector in blockchain ledger
+        await ctx.stub.putState(collectorKey, Buffer.from(stringify(collectorRecord)));
 
-    //     return `Record ${recordId} added by collector ${callerId}`;
-    // }
+        console.log('REGISTER COLLECTOR RESULT:', stringify(collectorRecord));
+        return stringify({
+            message: `Collector ${collectorId} registered successfully`,
+            collectorId: collectorId,
+            recordId: recordId
+        });
+    }
 
-    async onboardHerbbatch(ctx, args) {
+    // Collector login function - validates against blockchain data
+    async loginCollector(ctx, args) {
+        const { collectorId, password } = JSON.parse(args);
+        console.log("Login attempt for collector:", collectorId);
 
-        const {herbbatchId, name, dob, city} = JSON.parse(args);
+        // Retrieve collector record from blockchain
+        const collectorKey = ctx.stub.createCompositeKey('collector', [collectorId]);
+        const collectorJSON = await ctx.stub.getState(collectorKey);
 
-        console.log("ARGS-RWA", args)
-        console.log("ARGS-split 4", herbbatchId, name, dob, city)
+        if (!collectorJSON || collectorJSON.length === 0) {
+            throw new Error(`Collector ${collectorId} not found. Please register first.`);
+        }
 
+        const collector = JSON.parse(collectorJSON.toString());
 
-        const key = `herbbatch-${herbbatchId}`;
+        // Validate password (in production, use proper hashing)
+        if (collector.password !== password) {
+            throw new Error('Invalid credentials');
+        }
 
-        const existing = await ctx.stub.getState(key);
-        if (existing && existing.length > 0) {
+        if (collector.status !== 'active') {
+            throw new Error('Collector account is not active');
+        }
+
+        // Update last login time
+        collector.lastLogin = new Date(ctx.stub.getTxTimestamp().seconds.low * 1000).toISOString();
+        await ctx.stub.putState(collectorKey, Buffer.from(stringify(collector)));
+
+        return stringify({
+            message: 'Login successful',
+            collectorId: collectorId,
+            name: collector.name,
+            cooperativeName: collector.cooperativeName,
+            specialization: collector.specialization
+        });
+    }
+
+    // Get collector details
+    async getCollectorById(ctx, args) {
+        const { collectorId } = JSON.parse(args);
+
+        const collectorKey = ctx.stub.createCompositeKey('collector', [collectorId]);
+        const collectorJSON = await ctx.stub.getState(collectorKey);
+
+        if (!collectorJSON || collectorJSON.length === 0) {
+            throw new Error(`Collector ${collectorId} not found`);
+        }
+
+        const collector = JSON.parse(collectorJSON.toString());
+
+        // Remove password from response for security
+        delete collector.password;
+
+        return stringify(collector);
+    }
+
+    // Register herbbatch as blockchain ledger entry (like addRecord)
+    async registerHerbbatch(ctx, args) {
+        const { herbbatchId, name, dob, city, collectorId } = JSON.parse(args);
+        console.log("ARGS-RAW:", args);
+        console.log("ARGS:", herbbatchId, name, dob, city, collectorId);
+
+        const { role, uuid: callerId } = this.getCallerAttributes(ctx);
+
+        // Only collectors can register herbbatches
+        if (role !== 'collector') {
+            throw new Error('Only collectors can register herbbatches');
+        }
+
+        // Verify collector exists and is active
+        const collectorKey = ctx.stub.createCompositeKey('collector', [callerId]);
+        const collectorJSON = await ctx.stub.getState(collectorKey);
+        if (!collectorJSON || collectorJSON.length === 0) {
+            throw new Error(`Collector ${callerId} not found`);
+        }
+
+        const collector = JSON.parse(collectorJSON.toString());
+        if (collector.status !== 'active') {
+            throw new Error('Only active collectors can register herbbatches');
+        }
+
+        // Check if herbbatch already exists
+        const herbbatchKey = ctx.stub.createCompositeKey('herbbatch', [herbbatchId]);
+        const existingHerbbatch = await ctx.stub.getState(herbbatchKey);
+        if (existingHerbbatch && existingHerbbatch.length > 0) {
             throw new Error(`Herbbatch ${herbbatchId} already exists`);
         }
 
-        const herbbatch = {
+        const recordId = this.recordIdGenerator(ctx);
+        const timestamp = new Date(ctx.stub.getTxTimestamp().seconds.low * 1000).toISOString();
+
+        // Create herbbatch record as ledger entry
+        const herbbatchRecord = {
+            recordId,
             herbbatchId,
             name,
             dob,
             city,
-            authorizedCollectors: []
+            registeredBy: callerId,
+            cooperativeName: collector.cooperativeName,
+            authorizedCollectors: [callerId], // Initially only registering collector has access
+            status: 'active',
+            registeredAt: timestamp
         };
 
-        await ctx.stub.putState(key, Buffer.from(JSON.stringify(herbbatch)));
-        return `Herbbatch ${herbbatchId} registered`;
+        // Store in blockchain ledger like addRecord
+        await ctx.stub.putState(herbbatchKey, Buffer.from(stringify(herbbatchRecord)));
+
+        return stringify({
+            message: `Herbbatch ${herbbatchId} registered successfully`,
+            herbbatchId: herbbatchId,
+            recordId: recordId,
+            registeredBy: callerId
+        });
     }
 
-    async addRecord(ctx, args) {
+    // Grant access to herbbatch records (only herbbatch owner can do this)
+    async grantAccessToHerbbatch(ctx, args) {
+        const { herbbatchId, collectorIdToGrant } = JSON.parse(args);
+        console.log("Granting access for herbbatch:", herbbatchId, "to collector:", collectorIdToGrant);
 
-        const {herbbatchId, diagnosis, prescription} = JSON.parse(args);
-        console.log("ARGS_RAW",args)
-        console.log("ARGS", herbbatchId, diagnosis, prescription)
         const { role, uuid: callerId } = this.getCallerAttributes(ctx);
 
+        // This should be called by the herbbatch owner (patient)
+        // For now, we'll allow the registering collector to grant access
         if (role !== 'collector') {
-            throw new Error('Only collectors can add records');
+            throw new Error('Only collectors can grant access to herbbatch records');
         }
 
-        const herbbatchJSON = await ctx.stub.getState(`herbbatch-${herbbatchId}`);
+        const herbbatchKey = ctx.stub.createCompositeKey('herbbatch', [herbbatchId]);
+        const herbbatchJSON = await ctx.stub.getState(herbbatchKey);
+
         if (!herbbatchJSON || herbbatchJSON.length === 0) {
             throw new Error(`Herbbatch ${herbbatchId} not found`);
         }
 
-        console.log("==herbbatch record==",herbbatchJSON);
         const herbbatch = JSON.parse(herbbatchJSON.toString());
 
-        console.log("==herbbatch record parsed==",herbbatch);
+        // Check if caller is authorized to grant access
+        if (!herbbatch.authorizedCollectors.includes(callerId)) {
+            throw new Error(`Collector ${callerId} is not authorized for herbbatch ${herbbatchId}`);
+        }
 
+        // Verify the collector to grant access exists
+        const collectorKey = ctx.stub.createCompositeKey('collector', [collectorIdToGrant]);
+        const collectorJSON = await ctx.stub.getState(collectorKey);
+        if (!collectorJSON || collectorJSON.length === 0) {
+            throw new Error(`Collector ${collectorIdToGrant} not found`);
+        }
+
+        // Grant access if not already granted
+        if (!herbbatch.authorizedCollectors.includes(collectorIdToGrant)) {
+            herbbatch.authorizedCollectors.push(collectorIdToGrant);
+            herbbatch.lastUpdated = new Date(ctx.stub.getTxTimestamp().seconds.low * 1000).toISOString();
+
+            await ctx.stub.putState(herbbatchKey, Buffer.from(stringify(herbbatch)));
+        }
+
+        return stringify({
+            message: `Access granted to collector ${collectorIdToGrant} for herbbatch ${herbbatchId}`,
+            authorizedCollectors: herbbatch.authorizedCollectors
+        });
+    }
+
+    // Add medical record (existing function, updated for new structure)
+    async addRecord(ctx, args) {
+        const { herbbatchId, diagnosis, prescription, notes } = JSON.parse(args);
+        console.log("ARGS_RAW", args);
+        console.log("ARGS", herbbatchId, diagnosis, prescription);
+
+        const { role, uuid: callerId } = this.getCallerAttributes(ctx);
+
+        if (role !== 'collector') {
+            throw new Error('Only collectors can add medical records');
+        }
+
+        // Verify collector exists and is active
+        const collectorKey = ctx.stub.createCompositeKey('collector', [callerId]);
+        const collectorJSON = await ctx.stub.getState(collectorKey);
+        if (!collectorJSON || collectorJSON.length === 0) {
+            throw new Error(`Collector ${callerId} not found`);
+        }
+
+        const collector = JSON.parse(collectorJSON.toString());
+        if (collector.status !== 'active') {
+            throw new Error('Only active collectors can add records');
+        }
+
+        // Verify herbbatch exists
+        const herbbatchKey = ctx.stub.createCompositeKey('herbbatch', [herbbatchId]);
+        const herbbatchJSON = await ctx.stub.getState(herbbatchKey);
+        if (!herbbatchJSON || herbbatchJSON.length === 0) {
+            throw new Error(`Herbbatch ${herbbatchId} not found`);
+        }
+
+        const herbbatch = JSON.parse(herbbatchJSON.toString());
+
+        // Check if collector is authorized
         if (!herbbatch.authorizedCollectors.includes(callerId)) {
             throw new Error(`Collector ${callerId} is not authorized for herbbatch ${herbbatchId}`);
         }
 
         const txId = ctx.stub.getTxID();
-        const recordId = `R-${txId}`;
+        const recordId = `MR-${txId}`;
         const timestamp = new Date(ctx.stub.getTxTimestamp().seconds.low * 1000).toISOString();
 
-        const recordKey = ctx.stub.createCompositeKey('record', [herbbatchId, recordId]);
+        // Create composite key for medical record
+        const recordKey = ctx.stub.createCompositeKey('medicalRecord', [herbbatchId, recordId]);
 
-        const record = {
+        const medicalRecord = {
             recordId,
             herbbatchId,
             collectorId: callerId,
+            collectorName: collector.name,
             diagnosis,
             prescription,
+            notes: notes || '',
             timestamp
         };
 
-        await ctx.stub.putState(recordKey, Buffer.from(JSON.stringify(record)));
-        return JSON.stringify({message: `Record ${recordId} added for herbbatch ${herbbatchId}`});
+        await ctx.stub.putState(recordKey, Buffer.from(stringify(medicalRecord)));
+
+        return stringify({
+            message: `Medical record ${recordId} added for herbbatch ${herbbatchId}`,
+            recordId: recordId
+        });
     }
 
+    // Get all medical records for a herbbatch
     async getAllRecordsByHerbbatchId(ctx, args) {
-        const {herbbatchId} = JSON.parse(args);
-        const iterator = await ctx.stub.getStateByPartialCompositeKey('record', [herbbatchId]);
+        const { herbbatchId } = JSON.parse(args);
+
+        const { role, uuid: callerId } = this.getCallerAttributes(ctx);
+
+        // Verify authorization
+        if (role === 'collector') {
+            const herbbatchKey = ctx.stub.createCompositeKey('herbbatch', [herbbatchId]);
+            const herbbatchJSON = await ctx.stub.getState(herbbatchKey);
+
+            if (!herbbatchJSON || herbbatchJSON.length === 0) {
+                throw new Error(`Herbbatch ${herbbatchId} not found`);
+            }
+
+            const herbbatch = JSON.parse(herbbatchJSON.toString());
+            if (!herbbatch.authorizedCollectors.includes(callerId)) {
+                throw new Error(`Collector ${callerId} is not authorized for herbbatch ${herbbatchId}`);
+            }
+        }
+
+        const iterator = await ctx.stub.getStateByPartialCompositeKey('medicalRecord', [herbbatchId]);
         const results = [];
 
         for await (const res of iterator) {
             results.push(JSON.parse(res.value.toString('utf8')));
         }
 
-        return JSON.stringify(results);
+        return stringify(results);
     }
 
+    // Get specific medical record
     async getRecordById(ctx, args) {
-        const {herbbatchId, recordId} = JSON.parse(args);
-        const recordKey = ctx.stub.createCompositeKey('record', [herbbatchId, recordId]);
+        const { herbbatchId, recordId } = JSON.parse(args);
+
+        const { role, uuid: callerId } = this.getCallerAttributes(ctx);
+
+        // Verify authorization
+        if (role === 'collector') {
+            const herbbatchKey = ctx.stub.createCompositeKey('herbbatch', [herbbatchId]);
+            const herbbatchJSON = await ctx.stub.getState(herbbatchKey);
+
+            if (!herbbatchJSON || herbbatchJSON.length === 0) {
+                throw new Error(`Herbbatch ${herbbatchId} not found`);
+            }
+
+            const herbbatch = JSON.parse(herbbatchJSON.toString());
+            if (!herbbatch.authorizedCollectors.includes(callerId)) {
+                throw new Error(`Collector ${callerId} is not authorized for herbbatch ${herbbatchId}`);
+            }
+        }
+
+        const recordKey = ctx.stub.createCompositeKey('medicalRecord', [herbbatchId, recordId]);
         const recordJSON = await ctx.stub.getState(recordKey);
 
         if (!recordJSON || recordJSON.length === 0) {
-            throw new Error(`Record ${recordId} not found for herbbatch ${herbbatchId}`);
+            throw new Error(`Medical record ${recordId} not found for herbbatch ${herbbatchId}`);
         }
 
         return recordJSON.toString();
     }
 
-    async grantAccess(ctx, args) {
-        const {herbbatchId, collectorIdToGrant} = JSON.parse(args);
-        console.log("ARGS-grand access", args);
-        console.log("ARGS grand access", herbbatchId, collectorIdToGrant);
-
+    // Get all collectors (admin function)
+    async getAllCollectors(ctx, args) {
         const { role, uuid: callerId } = this.getCallerAttributes(ctx);
 
-        if (role !== 'herbbatch') {
-            throw new Error('Only herbbatches can grant access');
+        if (role !== 'cooperative') {
+            throw new Error('Only cooperatives can view all collectors');
         }
 
-        if (callerId !== herbbatchId) {
-            throw new Error('Caller is not the owner of this herbbatch record');
+        const iterator = await ctx.stub.getStateByPartialCompositeKey('collector', []);
+        const results = [];
+
+        for await (const res of iterator) {
+            const collector = JSON.parse(res.value.toString('utf8'));
+            delete collector.password; // Remove password for security
+            results.push(collector);
         }
 
-        const key = `herbbatch-${herbbatchId}`;
-        const herbbatchJSON = await ctx.stub.getState(key);
-        if (!herbbatchJSON || herbbatchJSON.length === 0) {
-            throw new Error(`Herbbatch ${herbbatchId} not found`);
-        }
-
-        const herbbatch = JSON.parse(herbbatchJSON.toString());
-
-        if (!herbbatch.authorizedCollectors.includes(collectorIdToGrant)) {
-            herbbatch.authorizedCollectors.push(collectorIdToGrant);
-            await ctx.stub.putState(key, Buffer.from(JSON.stringify(herbbatch)));
-        }
-
-        return JSON.stringify({message:`Collector ${collectorIdToGrant} authorized`});
+        return stringify(results);
     }
 
-    // GetAllAssets returns all assets found in the world state.
+    // Fetch ledger (admin function)
     async fetchLedger(ctx) {
-        // call by admin only
         const { role, uuid: callerId } = this.getCallerAttributes(ctx);
 
         if (role !== 'cooperative') {
@@ -335,14 +399,18 @@ class ehrChainCode extends Contract {
         }
 
         const allResults = [];
-        // range query with empty string for startKey and endKey does an open-ended query of all assets in the chaincode namespace.
         const iterator = await ctx.stub.getStateByRange('', '');
         let result = await iterator.next();
+
         while (!result.done) {
             const strValue = Buffer.from(result.value.value.toString()).toString('utf8');
             let record;
             try {
                 record = JSON.parse(strValue);
+                // Remove passwords for security
+                if (record.password) {
+                    delete record.password;
+                }
             } catch (err) {
                 console.log(err);
                 record = strValue;
@@ -350,11 +418,13 @@ class ehrChainCode extends Contract {
             allResults.push(record);
             result = await iterator.next();
         }
+
         return stringify(allResults);
     }
 
+    // Query transaction history
     async queryHistoryOfAsset(ctx, args) {
-        const {assetId} = JSON.parse(args);
+        const { assetId } = JSON.parse(args);
         const iterator = await ctx.stub.getHistoryForKey(assetId);
         const results = [];
 
@@ -370,7 +440,12 @@ class ehrChainCode extends Contract {
 
                 try {
                     if (res.value.value && res.value.value.length > 0 && !res.value.isDelete) {
-                        tx.asset = JSON.parse(res.value.value.toString('utf8'));
+                        const asset = JSON.parse(res.value.value.toString('utf8'));
+                        // Remove passwords for security
+                        if (asset.password) {
+                            delete asset.password;
+                        }
+                        tx.asset = asset;
                     }
                 } catch (err) {
                     tx.asset = null;
@@ -387,32 +462,6 @@ class ehrChainCode extends Contract {
 
         return results;
     }
-
-
-    // get herbbatch details by id
-
-    // get all herbbatch
-
-    // get herbbatch record by collector
-
-    // issue lab
-
-    // create claim
-
-    // get claim info
-
-    // approve claim
-
-    // onboard Researchers
-
-    // send consent request to herbbatch
-
-    // get herbbatch data for Researchers
-
-    // issue reward to herbbatch
-
-    // claim reward - by herbbatch
-
 }
 
 module.exports = ehrChainCode;
