@@ -1,6 +1,9 @@
 
 
 
+
+
+
 /*
  * Copyright IBM Corp. All Rights Reserved.
  *
@@ -17,10 +20,10 @@ const path = require('path');
 async function main() {
     try {
         // Check for command-line arguments
-        const newCollectorName = process.argv[2];
-        if (!newCollectorName) {
-            console.error('Error: Please provide a name for the new collector.');
-            console.log('Usage: node onboardCollectorarg.js <name>');
+        const newHerbbatchName = process.argv[2];
+        if (!newHerbbatchName) {
+            console.error('Error: Please provide a name for the new herbbatch.');
+            console.log('Usage: node onboardHerbbatch.js <name>');
             process.exit(1);
         }
 
@@ -45,22 +48,22 @@ async function main() {
             return;
         }
 
-        // Determine the next available collector ID
-        let collectorIdFound = false;
-        let collectorId = '';
+        // Determine the next available herbbatch ID
+        let herbbatchIdFound = false;
+        let herbbatchId = '';
         let counter = 1;
-        while (!collectorIdFound) {
-            const potentialId = `Collector-${newCollectorName.toLowerCase()}${counter}`;
+        while (!herbbatchIdFound) {
+            const potentialId = `Herbbatch-${newHerbbatchName.toLowerCase()}${counter}`;
             const identity = await wallet.get(potentialId);
             if (!identity) {
-                collectorId = potentialId;
-                collectorIdFound = true;
+                herbbatchId = potentialId;
+                herbbatchIdFound = true;
             } else {
                 counter++;
             }
         }
 
-        console.log(`Using new Collector ID: ${collectorId}`);
+        console.log(`Using new Herbbatch ID: ${herbbatchId}`);
 
         // Build a user object for authenticating with the CA
         const provider = wallet.getProviderRegistry().getProvider(adminIdentity.type);
@@ -69,13 +72,13 @@ async function main() {
         // Register the user, enroll the user, and import the new identity into the wallet.
         const secret = await ca.register({
             affiliation: 'org1.department1',
-            enrollmentID: collectorId,
+            enrollmentID: herbbatchId,
             role: 'client',
-            attrs: [{ name: 'role', value: 'collector', ecert: true }, { name: 'uuid', value: collectorId, ecert: true }],
+            attrs: [{ name: 'role', value: 'herbbatch', ecert: true }, { name: 'uuid', value: herbbatchId, ecert: true }],
         }, adminUser);
 
         const enrollment = await ca.enroll({
-            enrollmentID: collectorId,
+            enrollmentID: herbbatchId,
             enrollmentSecret: secret,
             attr_reqs: [{ name: "role", optional: false }, { name: "uuid", optional: false }]
         });
@@ -88,33 +91,33 @@ async function main() {
             mspId: 'Org1MSP',
             type: 'X.509',
         };
-        await wallet.put(collectorId, x509Identity);
-        console.log(`Successfully registered and enrolled collector user "${collectorId}" and imported it into the wallet`);
+        await wallet.put(herbbatchId, x509Identity);
+        console.log(`Successfully registered and enrolled herbbatch user "${herbbatchId}" and imported it into the wallet`);
 
         // Create a new gateway and connect to the network.
         const gateway = new Gateway();
-        // Use the newly created identity (collectorId) to connect
-        await gateway.connect(ccp, { wallet, identity: collectorId, discovery: { enabled: true, asLocalhost: true } });
+        // Use the CooperativeAdmin identity to submit the transaction.
+        await gateway.connect(ccp, { wallet, identity: 'cooperativeAdmin', discovery: { enabled: true, asLocalhost: true } });
 
         // Get the network and contract.
         const network = await gateway.getNetwork('mychannel');
         const contract = network.getContract('ehrChainCode');
 
         const args = {
-            collectorId: collectorId,
-            cooperativeName: "Cooperative01-ABC",
-            name: newCollectorName,
-            city: "Pune"
+            herbbatchId: herbbatchId,
+            name: newHerbbatchName,
+            dob: "1991-05-15",
+            city: "Mumbai"
         };
 
-        const res = await contract.submitTransaction('onboardCollector', JSON.stringify(args));
-        console.log("\n === Onboard Collector success === \n", res.toString());
+        const res = await contract.submitTransaction('onboardHerbbatch', JSON.stringify(args));
+        console.log("\n === Onboard Herbbatch success === \n", res.toString());
 
         // Disconnect from the gateway.
         gateway.disconnect();
 
     } catch (error) {
-        console.error(`Failed to onboard collector: ${error}`);
+        console.error(`Failed to onboard herbbatch: ${error}`);
         process.exit(1);
     }
 }

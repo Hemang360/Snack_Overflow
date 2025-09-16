@@ -1,5 +1,3 @@
-/* Corrected app.js */
-
 'use strict';
 
 const express = require('express');
@@ -18,29 +16,30 @@ app.listen(5000, function () {
 
 app.get('/status', async function (req, res, next) {
     res.send("Server is up.");
-});
+})
 
-
-app.post('/registerPatient', async function (req, res, next) {
+app.post('/registerHerbbatch', async function (req, res, next) {
     try {
         let role;
-        let {adminId, doctorId, userId, name, dob, city} = req.body;
+        let {adminId, collectorId, userId, name, dob, city} = req.body;
 
+        // check request body
         console.log("Received request:", req.body);
         if (req.body.userId && req.body.adminId) {
             userId = req.body.userId;
-
             adminId = req.body.adminId;
         } else {
             console.log("Missing input data. Please enter all the user details.");
             throw new Error("Missing input data. Please enter all the user details.");
         }
 
-        role='patient';
+        role='herbbatch';
 
-        const result = await helper.registerUser(adminId, doctorId, userId, role, { name, dob, city});
+        //call registerEnrollUser function and pass the above as parameters to the function
+        const result = await helper.registerUser(adminId, collectorId, userId, role, { name, dob, city});
         console.log("Result from user registration function:", result);
 
+        // check register function response and set API response accordingly
         res.status(200).send(result);
     } catch (error) {
         console.log("There was an error while registering the user. Error is ", error);
@@ -48,9 +47,11 @@ app.post('/registerPatient', async function (req, res, next) {
     }
 });
 
-app.post('/loginPatient', async function (req, res, next){
+app.post('/loginHerbbatch', async function (req, res, next){
     try {
         let userId;
+
+        // check request body
         if (req.body.userId) {
             userId = req.body.userId;
         } else {
@@ -60,53 +61,48 @@ app.post('/loginPatient', async function (req, res, next){
 
         const result = await helper.login(userId);
         console.log("Result from user login function: ", result);
+        //check response returned by login function and set API response accordingly
         res.status(200).send(result);
     } catch (error) {
         console.log("There was an error while logging in. Error is ", error);
-        next(error);
-    }
-
-});
-
-app.post('/onboardHerbbatch', async function (req, res, next) {
-    try {
-        const { userId, herbbatchId, name, dob, city } = req.body;
-        // Pass a single JSON object to the invokeTransaction helper
-        const result = await invoke.invokeTransaction('onboardHerbbatch', { herbbatchId, name, dob, city }, userId);
-        res.status(200).send({ success: true, data: result });
-    } catch (error) {
-        next(error);
-    }
-});
-
-
-app.post('/addRecord', async function (req, res, next){
-    try {
-        const {userId, herbbatchId, diagnosis, prescription} = req.body;
-        // Pass a single JSON object to the invokeTransaction helper
-        const result = await invoke.invokeTransaction('addRecord', { herbbatchId, diagnosis, prescription }, userId);
-        res.send({ sucess:true, data: result });
-    } catch (error) {
         next(error);
     }
 });
 
 app.post('/queryHistoryOfAsset', async function (req, res, next){
     try {
+        //  queryHistory(ctx, Id)
         let userId = req.body.userId;
-        let recordId = req.body.recordId;
+        let assetId = req.body.assetId;
 
-        const result = await query.getQuery('queryHistoryOfAsset',{recordId}, userId);
+        const result = await query.getQuery('queryHistoryOfAsset',{assetId}, userId);
+        // console.log("Response from chaincode", result);
+        //check response returned by login function and set API response accordingly
         res.status(200).send(JSON.parse(result.data));
     } catch (error) {
         next(error);
     }
 });
 
-app.post('/getAllRecordsByPatientId', async function (req, res, next){
+app.post('/addRecord', async function (req, res, next){
     try {
-        const {userId, patientId} = req.body;
-        const result = await query.getQuery('getAllRecordsByPatientId',{patientId}, userId);
+        //  Only collectors can add records
+        const {userId, herbbatchId, diagnosis, prescription} = req.body;
+        const result = await invoke.invokeTransaction('addRecord', {herbbatchId, diagnosis, prescription}, userId);
+
+        res.send({success:true, data: result})
+
+    } catch (error) {
+        next(error);
+    }
+});
+
+app.post('/getAllRecordsByHerbbatchId', async function (req, res, next){
+    try {
+        // getAllRecordsByHerbbatchId(ctx, herbbatchId)
+        const {userId, herbbatchId} = req.body;
+        const result = await query.getQuery('getAllRecordsByHerbbatchId',{herbbatchId}, userId);
+
         console.log("Response from chaincode", result);
         res.status(200).send({ success: true, data:result});
 
@@ -117,8 +113,10 @@ app.post('/getAllRecordsByPatientId', async function (req, res, next){
 
 app.post('/getRecordById', async function (req, res, next){
     try {
-        const {userId, patientId, recordId} = req.body;
-        const result = await query.getQuery('getRecordById',{patientId, recordId}, userId);
+        // getRecordById(ctx, herbbatchId, recordId)
+        const {userId, herbbatchId, recordId} = req.body;
+        const result = await query.getQuery('getRecordById',{herbbatchId, recordId}, userId);
+
         console.log("Response from chaincode", result);
         res.status(200).send({ success: true, data:result});
 
@@ -129,8 +127,11 @@ app.post('/getRecordById', async function (req, res, next){
 
 app.post('/grantAccess', async function (req, res, next){
     try {
-        const {userId, patientId, doctorIdToGrant} = req.body;
-        const result = await invoke.invokeTransaction('grantAccess',{patientId:patientId, doctorIdToGrant:doctorIdToGrant}, userId);
+        // call this from herbbatch
+        // grantAccess(ctx, herbbatchId, collectorIdToGrant) - call by herbbatch
+        const {userId, herbbatchId, collectorIdToGrant} = req.body;
+        const result = await invoke.invokeTransaction('grantAccess',{herbbatchId:herbbatchId, collectorIdToGrant:collectorIdToGrant}, userId);
+
         console.log("Response from chaincode", result);
         res.status(200).send({ success: true, data:result});
 
@@ -139,18 +140,22 @@ app.post('/grantAccess', async function (req, res, next){
     }
 });
 
+// create Faucet Wallet only admin can call.
+// fetchLedger(ctx)
 app.post('/fetchLedger', async function (req, res, next){
     try {
         let userId = req.body.userId;
+        // fetchLedger(ctx)
         const result = await query.getQuery('fetchLedger', {}, userId);
         console.log("Response from chaincode", result);
-        res.status(200).send({ success: true, data:result});
+        //check response returned by login function and set API response accordingly
+        res.status(200).send({ success: true, data:result})
+
     } catch (error) {
         next(error);
     }
 });
 
-
 app.use((err, req, res, next) => {
-    res.status(400).send({ error: err.message });
-});
+    res.status(400).send(err.message);
+})

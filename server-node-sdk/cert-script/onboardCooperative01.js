@@ -28,33 +28,31 @@ async function main() {
         console.log(`Wallet path: ${walletPath}`);
 
         // Check to see if we've already enrolled the user.
-        const userIdentity = await wallet.get('Cooperative01');
+        const userIdentity = await wallet.get('Cooperative01-v2');
         if (userIdentity) {
             console.log('An identity for the user "Cooperative01" already exists in the wallet');
             return;
         }
 
         // Check to see if we've already enrolled the cooperativeAdmin user.
-        const adminIdentity = await wallet.get('cooperativeAdmin');
-        if (!adminIdentity) {
-            console.log('An identity for the cooperativeAdmin user "cooperativeAdmin" does not exist in the wallet');
-            console.log('Run the enrollAdmin.js application before retrying');
-            return;
-        }
-
-        // build a user object for authenticating with the CA
-        const provider = wallet.getProviderRegistry().getProvider(adminIdentity.type);
-        const adminUser = await provider.getUserContext(adminIdentity, 'cooperativeAdmin');
+        // Get the admin identity instead
+const adminIdentity = await wallet.get('admin');
+if (!adminIdentity) {
+    console.log('Admin identity not found');
+    return;
+}
+const provider = wallet.getProviderRegistry().getProvider(adminIdentity.type);
+const adminUser = await provider.getUserContext(adminIdentity, 'admin');
 
         // Register the user, enroll the user, and import the new identity into the wallet.
         const secret = await ca.register({
             affiliation: 'org1.department1',
-            enrollmentID: 'Cooperative01',
+            enrollmentID: 'Cooperative01-v2',
             role: 'client',
             attrs: [{ name: 'role', value: 'cooperative', ecert: true },{ name: 'uuid', value: 'Cooperative01', ecert: true }],
         }, adminUser);
         const enrollment = await ca.enroll({
-            enrollmentID: 'Cooperative01',
+            enrollmentID: 'Cooperative01-v2',
             enrollmentSecret: secret,
             attr_reqs: [{ name: "role", optional: false },{ name: "uuid", optional: false }]
         });
@@ -66,7 +64,7 @@ async function main() {
             mspId: 'Org1MSP',
             type: 'X.509',
         };
-        await wallet.put('Cooperative01', x509Identity);
+        await wallet.put('Cooperative01-v2', x509Identity);
         console.log('Successfully registered and enrolled cooperativeAdmin user "Cooperative01" and imported it into the wallet');
     } catch (error) {
         console.error(`Failed to register user "Cooperative01": ${error}`);

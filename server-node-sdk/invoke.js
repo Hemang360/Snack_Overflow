@@ -1,16 +1,8 @@
-
-
-
-
-
-/* Corrected invoke.js */
-
 'use strict';
 
 const fs = require('fs');
 const path = require('path');
 const { Wallets, Gateway } = require('fabric-network');
-
 
 const invokeTransaction = async (fcn, args, userID) => {
 
@@ -45,12 +37,16 @@ const invokeTransaction = async (fcn, args, userID) => {
     // Submit transaction with a single stringified JSON object
     let result = await contract.submitTransaction(fcn, JSON.stringify(args));
 
-    result = JSON.parse(result);
-    console.log(`Response from ${fcn} chaincode:}`, result);
+    console.log(`Response from ${fcn} chaincode: ${result.toString()}`);
 
     gateway.disconnect();
 
-    return result;
+    // Try to parse result as JSON, if it fails return as string
+    try {
+        return JSON.parse(result.toString());
+    } catch (e) {
+        return result.toString();
+    }
 }
 
 module.exports = {
