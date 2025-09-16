@@ -1,295 +1,149 @@
-README
+# 🌿 Ayurvedic Network - Blockchain Traceability System
 
-# Electronic Health Record Blockchain Platform
+A production-ready blockchain-based traceability system for Ayurvedic herbs and products, ensuring authenticity and quality from farm to consumer.
 
-A decentralized Electronic Health Records (EHR) system built on Hyperledger Fabric blockchain technology, enabling secure and transparent health data management across multiple healthcare stakeholders.
+## 🎯 Problem Solved
 
-## Tech Stack
+This system addresses the fragmented Ayurvedic herbal supply chain by providing:
+- **Immutable blockchain records** of every step from collection to consumer
+- **Geo-tagged collection events** with GPS validation
+- **Automated quality testing** with pass/fail logic
+- **Consumer verification** via QR codes and SMS gateway
+- **Comprehensive analytics** and compliance reporting
 
-- **Hyperledger Fabric** - Blockchain framework (Node SDK JavaScript)
-- **Node.js** - Backend runtime
-- **Express.js** - Web framework
-- **Next.js** - Frontend framework
-- **IPFS** - Distributed file storage
-- **CouchDB** - State database
+## 🚀 Quick Start
 
-## System Architecture
 
-### Actors and Roles
+API available at: `http://localhost:3000`
 
-1. **Government** - Network owner with admin access
-2. **Cooperatives** - Network organizations managing collectors
-3. **Collectors (Doctors)** - Healthcare practitioners managing herb batch records
-4. **Lab Companies** - Laboratory organizations with agents
-5. **Lab Agents** - Laboratory technicians performing tests
-6. **Herb Batches (Patients)** - End users owning their health records
+## 🔑 Demo Credentials
+- **Username**: `demo`
+- **Password**: `demo123`
+- **Role**: Super Administrator
 
-### Access Control Matrix
+## 📡 API Endpoints
 
-| Role | Read Access | Write Access |
-|------|-------------|--------------|
-| Government | All records | Admin functions |
-| Cooperative | Collector data | Onboard collectors |
-| Collector | Authorized herb batch records | Add medical records |
-| Lab Agent | Assigned test results | Add/update lab results |
-| Herb Batch | Own records | Grant access permissions |
+### Authentication
+- `POST /api/auth/login` - User login
+- `GET /api/auth/me` - Get user profile
+- `POST /api/auth/logout` - User logout
 
-## Prerequisites
+### Core Operations
+- `POST /api/protected/collection-events` - Create collection event
+- `GET /api/protected/collection-events` - List collection events
+- `POST /api/protected/quality-tests` - Create quality test
+- `GET /api/protected/quality-tests` - List quality tests
+- `POST /api/protected/product-batches` - Create product batch
+- `GET /api/protected/product-batches` - List product batches
 
-- Node.js (v14 or higher)
-- Docker and Docker Compose
-- Git
+### Analytics & Verification
+- `GET /api/protected/analytics` - Dashboard analytics
+- `POST /api/sms-webhook` - SMS verification
+- `GET /api/protected/traceability/:batchId` - Full traceability chain
 
-## Installation & Setup
 
-### 1. Download Hyperledger Fabric
 
-```bash
-# Download fabric binaries and samples
-./install-fabric.sh
-```
 
-### 2. Start the Test Network
+## 🏗️ Architecture
 
-```bash
-cd fabric-samples/test-network
+- **Express.js** API server with validation layer
+- **Role-based access control** (RBAC) with 12 user roles
+- **Blockchain integration** (Hyperledger Fabric + mock mode)
+- **Comprehensive validation** and error handling
+- **RESTful API** design with OpenAPI documentation
 
-# Start network with Certificate Authority and create channel
-./network.sh up createChannel -ca -s couchdb
+## 🔗 Blockchain Features
 
-# Verify containers are running
-docker ps
-```
 
-### 3. Deploy Chaincode
+### Smart Contract Functions
+- ✅ `RecordCollectionEvent` - Geo-tagged herb collection
+- ✅ `RecordQualityTest` - Laboratory quality testing with pass/fail logic
+- ✅ `RecordProcessingStep` - Processing and handling steps
+- ✅ `CreateProductBatch` - Product batch creation with QR codes
+- ✅ `GetFullTraceability` - Complete supply chain traceability
+- ✅ `QueryCollectionsBySpecies` - Species-based queries with date ranges
+- ✅ `QueryQualityTestsByLab` - Lab-specific quality test queries
 
-```bash
-# Deploy the EHR chaincode
-./network.sh deployCC -ccn ehrChainCode -ccp ../asset-transfer-basic/chaincode-javascript/ -ccl javascript
-```
+### Real Certificates and Ledger
+When running in production mode (`MOCK_BLOCKCHAIN=false`):
+- ✅ **Real X.509 certificates** for identity management
+- ✅ **Persistent ledger** stored on Hyperledger Fabric network
+- ✅ **Immutable transactions** with cryptographic proof
+- ✅ **Multi-peer consensus** for transaction validation
+- ✅ **Certificate Authority (CA)** integration for user enrollment
 
-### 4. Register Network Administrators
+## 📋 Environment Variables
 
-```bash
-cd server-node-sdk/
-
-# Register Org1 Admin
-node cert-script/registerOrg1Admin.js
-
-# Register Org2 Admin (for lab organization)
-node cert-script/registerOrg2Admin.js
-```
-
-### 5. Onboard Initial Users
+Create a `.env` file based on `env.example`:
 
 ```bash
-# Onboard cooperative
-node cert-script/onboardCooperative01.js
 
-# Onboard collector
-node cert-script/onboardCollector.js
+
+# JWT Security
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+JWT_EXPIRES_IN=24h
+
+# Blockchain Configuration
+MOCK_BLOCKCHAIN=false
+CONNECTION_PROFILE=./fabric-config/connection-org1.json
+CHANNEL_NAME=ayurvedicchannel
+CONTRACT_NAME=ayurvedic-traceability
+WALLET_PATH=./wallet
+IDENTITY=appUser
+MSP_ID=Org1MSP
+
+# Security
+BCRYPT_ROUNDS=12
+SESSION_SECRET=your-session-secret-change-this-in-production
+
+# API Configuration
+PORT=3000
+NODE_ENV=production
+ALLOWED_ORIGINS=https://yourdomain.com
+
+# Logging
+LOG_LEVEL=info
+LOG_FILE=logs/app.log
 ```
 
-### 6. Start API Server
+## 🎯 Key Features
 
-```bash
-# Install dependencies
-npm install
+### 1. **Complete Traceability Chain**
+- Farm collection with GPS coordinates
+- Processing steps (cleaning, drying, grinding)
+- Quality testing with automated pass/fail
+- Product batch creation with QR codes
+- Consumer verification
 
-# Start development server
-npm run dev
-```
+### 2. **Multi-Role Access Control**
+- **Farmers**: Record collection events
+- **Processors**: Record processing steps
+- **Lab Technicians**: Record quality tests
+- **Manufacturers**: Create product batches
+- **Consumers**: Verify products via QR codes
+- **Regulators**: Access compliance reports
 
-The API server will be running on `http://localhost:5000`
+### 3. **Consumer-Facing Features**
+- QR code generation for each batch
+- SMS verification for rural areas
+- Web portal for product verification
+- Interactive traceability maps
 
-## API Endpoints
+### 4. **Analytics & Reporting**
+- Dashboard with key metrics
+- Compliance reporting
+- CSV data export
+- Real-time activity monitoring
 
-### Authentication & Registration
+## 📖 Documentation
 
-- `POST /registerHerbbatch` - Register new herb batch (patient)
-- `POST /loginHerbbatch` - Authenticate herb batch user
+- **OpenAPI Spec**: `/api/openapi.json`
+- **Health Check**: `/health`
+- **API Config**: `/api/config`
 
-### Medical Records Management
+## 🎯 Ready for Frontend Development
 
-- `POST /addRecord` - Add medical record (collectors only)
-- `POST /getAllRecordsByHerbbatchId` - Get all records for a herb batch
-- `POST /getRecordById` - Get specific medical record
-
-### Lab Results Management
-
-- `POST /addLabResult` - Add lab test results (lab agents only)
-- `POST /getAllLabResultsByHerbbatchId` - Get all lab results for herb batch
-- `POST /getLabResultById` - Get specific lab result
-
-### Access Control
-
-- `POST /grantAccess` - Grant collector access to herb batch records
-- `POST /queryHistoryOfAsset` - Query transaction history
-
-### Administrative
-
-- `POST /fetchLedger` - Fetch all ledger data (admin only)
-- `GET /status` - Check server status
-
-## Example Usage
-
-### Register a New Herb Batch (Patient)
-
-```bash
-curl -X POST http://localhost:5000/registerHerbbatch \
-  -H "Content-Type: application/json" \
-  -d '{
-    "adminId": "cooperativeAdmin",
-    "collectorId": "Collector-001",
-    "userId": "HB-001",
-    "name": "John Doe",
-    "dob": "1990-01-01",
-    "city": "New York"
-  }'
-```
-
-### Add Medical Record
-
-```bash
-curl -X POST http://localhost:5000/addRecord \
-  -H "Content-Type: application/json" \
-  -d '{
-    "userId": "Collector-001",
-    "herbbatchId": "HB-001",
-    "diagnosis": "Hypertension",
-    "prescription": "Lisinopril 10mg daily"
-  }'
-```
-
-### Add Lab Results
-
-```bash
-curl -X POST http://localhost:5000/addLabResult \
-  -H "Content-Type: application/json" \
-  -d '{
-    "userId": "LabAgent-001",
-    "herbbatchId": "HB-001",
-    "testType": "Blood Pressure",
-    "testResults": "140/90 mmHg",
-    "notes": "Elevated reading"
-  }'
-```
-
-## Data Structure
-
-### Herb Batch Record
-```json
-{
-  "herbbatchId": "HB-001",
-  "name": "John Doe",
-  "dob": "1990-01-01",
-  "city": "New York",
-  "authorizedCollectors": ["Collector-001"]
-}
-```
-
-### Medical Record
-```json
-{
-  "recordId": "R-txid123",
-  "herbbatchId": "HB-001",
-  "collectorId": "Collector-001",
-  "diagnosis": "Hypertension",
-  "prescription": "Lisinopril 10mg daily",
-  "timestamp": "2024-01-01T10:00:00Z"
-}
-```
-
-### Lab Result
-```json
-{
-  "labResultId": "LAB-txid456",
-  "herbbatchId": "HB-001",
-  "labAgentId": "LabAgent-001",
-  "testType": "Blood Pressure",
-  "testResults": "140/90 mmHg",
-  "notes": "Elevated reading",
-  "timestamp": "2024-01-01T11:00:00Z"
-}
-```
-
-## Blockchain Explorer Setup (Optional)
-
-### 1. Copy Network Configuration
-
-```bash
-cd fabric-explorer/
-cp -r ../fabric-samples/test-network/organizations/ .
-```
-
-### 2. Set Environment Variables
-
-```bash
-export EXPLORER_CONFIG_FILE_PATH=./config.json
-export EXPLORER_PROFILE_DIR_PATH=./connection-profile
-export FABRIC_CRYPTO_PATH=./organizations
-```
-
-### 3. Start Explorer
-
-```bash
-# Start with logs
-docker-compose up
-
-# Or start in background
-docker-compose up -d
-```
-
-### 4. Access Explorer
-
-Open `http://localhost:8080` in your browser
-
-## Stopping the Network
-
-```bash
-# Stop API server
-# Press Ctrl+C in the terminal running npm run dev
-
-# Stop blockchain explorer
-cd fabric-explorer/
-docker-compose down
-
-# Stop blockchain network
-cd fabric-samples/test-network/
-./network.sh down
-```
-
-## Project Structure
-
-```
-├── server-node-sdk/
-│   ├── app.js              # Express API server
-│   ├── helper.js           # User registration utilities
-│   ├── invoke.js           # Blockchain transaction functions
-│   ├── query.js            # Blockchain query functions
-│   └── cert-script/        # User onboarding scripts
-├── fabric-samples/         # Hyperledger Fabric samples
-├── fabric-explorer/        # Blockchain explorer setup
-└── chaincode/
-    └── ehrChainCode.js     # Smart contract logic
-```
-
-## Security Features
-
-- **Identity Management** - Certificate-based user authentication
-- **Access Control** - Role-based permissions for data access
-- **Data Integrity** - Immutable blockchain ledger
-- **Privacy** - Patient-controlled access permissions
-- **Audit Trail** - Complete transaction history
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## License
-
-This project is licensed under the Apache 2.0 License - see the LICENSE file for details.
+This API is production-ready for:
+- **React/TypeScript** web dashboard
+- **Kotlin** mobile application
+- **Third-party integrations**
