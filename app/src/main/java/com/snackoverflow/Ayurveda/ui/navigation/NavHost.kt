@@ -6,6 +6,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.snackoverflow.Ayurveda.ui.screens.HerbActionScreen
+import com.snackoverflow.Ayurveda.ui.screens.PatientDataActionScreen
 import com.snackoverflow.Ayurveda.ui.screens.RecordScreen
 import com.snackoverflow.Ayurveda.viewmodel.SharedRecordViewModel
 val sharedRecordViewMode = SharedRecordViewModel()
@@ -15,6 +16,7 @@ sealed class Screen(val route: String) {
     object Register : Screen("register")
     object Record : Screen("record")
     object Dashboard : Screen("dashboard")
+    object LogData : Screen("logData")
 }
 @Composable
 fun HerbAbhilekh() {
@@ -28,6 +30,9 @@ fun HerbAbhilekh() {
         }
         composable(Screen.Dashboard.route){
             HerbActionScreen(navController)
+        }
+        composable(Screen.LogData.route){
+            PatientDataActionScreen(navController)
         }
     }
 }

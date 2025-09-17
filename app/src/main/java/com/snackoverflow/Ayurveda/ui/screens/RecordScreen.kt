@@ -80,18 +80,6 @@ fun RecordScreen(
     ) {
         Scaffold(
             topBar = {
-                Spacer(Modifier.height(12.dp))
-//                    IconButton(
-//                        onClick = {
-//                            navController.navigate(Screen.Dashboard.route)
-//                        }
-//                    ) {
-//                        Icon(
-//                            imageVector = Icons.Default.ArrowBack,
-//                            contentDescription = "Go Back to Home Page",
-//                            modifier = Modifier.size(28.dp)
-//                        )
-//                    }
                 TopAppBar(
                     title = {
                         Row(verticalAlignment = Alignment.CenterVertically) {

@@ -61,7 +61,9 @@ fun HerbActionScreen(navController: NavController) {
                         tint = darkGreenText
                     )
                 },
-                onClick = { /*TODO : Handle Navigation*/}
+                onClick = {
+                    navController.navigate(Screen.LogData.route)
+                }
             )
         }
     }
