@@ -1,7 +1,7 @@
 {
   "name": "ayurvedic-blockchain-frontend",
   "version": "1.0.0",
-  "description": "Frontend for Ayurvedic Blockchain Traceability System",
+  "description": "Frontend for Herb Abhilekh Blockchain Traceability System",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

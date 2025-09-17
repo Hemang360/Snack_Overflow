@@ -11,7 +11,7 @@ const stringify  = require('json-stringify-deterministic');
 const sortKeysRecursive  = require('sort-keys-recursive');
 const { Contract } = require('fabric-contract-api');
 
-class ehrChainCode extends Contract {
+class HerbAbhilekhChaincode extends Contract {
 
     // Generate unique record ID
     recordIdGenerator(ctx){
@@ -464,4 +464,4 @@ class ehrChainCode extends Contract {
     }
 }
 
-module.exports = ehrChainCode;
+module.exports = HerbAbhilekhChaincode;

@@ -1,5 +1,5 @@
-// Ayurvedic Blockchain Frontend Application
-class AyurvedicApp {
+// Herb Abhilekh Blockchain Frontend Application
+class HerbAbhilekhApp {
     constructor() {
         this.apiBase = 'http://localhost:5000';
         this.currentUser = null;
@@ -330,8 +330,11 @@ class AyurvedicApp {
                                     <h5><i class="fas fa-chart-line"></i> Analytics</h5>
                                 </div>
                                 <div class="card-body">
-                                    <button class="btn btn-info mb-2" onclick="app.loadBlockchainInfo()">
+                                    <button class="btn btn-info mb-2 me-2" onclick="app.loadBlockchainInfo()">
                                         <i class="fas fa-link"></i> Blockchain Info
+                                    </button>
+                                    <button class="btn btn-secondary mb-2" onclick="app.loadRecentActivity()">
+                                        <i class="fas fa-history"></i> Recent Activity
                                     </button>
                                     <div id="analyticsContent"></div>
                                 </div>
@@ -922,30 +925,91 @@ class AyurvedicApp {
                                 <p><strong>Latest Block Hash:</strong><br><code>${response.latestBlock.hash}</code></p>
                                 <p><strong>Block Number:</strong> ${response.latestBlock.number}</p>
                                 <p><strong>Block Time:</strong> ${new Date(response.latestBlock.timestamp).toLocaleString()}</p>
-                                <p><strong>Transactions in Block:</strong> ${response.latestBlock.transactionCount}</p>
+                                <p><strong>QR Code:</strong> ${response.latestBlock.qrCode}</p>
+                                <p><strong>Steps in Block:</strong> ${response.latestBlock.steps}</p>
                             </div>
                         </div>
                         <hr>
                         <h6><i class="fas fa-chart-bar"></i> Blockchain Statistics</h6>
                         <div class="row">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="text-center">
-                                    <h4 class="text-primary">${response.statistics.totalCollections}</h4>
-                                    <small>Collection Events</small>
+                                    <h4 class="text-primary">${response.statistics.totalBlocks}</h4>
+                                    <small>QR Code Blocks</small>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="text-center">
-                                    <h4 class="text-success">${response.statistics.totalQualityTests}</h4>
+                                    <h4 class="text-success">${response.statistics.totalCollections}</h4>
+                                    <small>Collections</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h4 class="text-info">${response.statistics.totalQualityTests}</h4>
                                     <small>Quality Tests</small>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="text-center">
-                                    <h4 class="text-info">${response.statistics.totalTransactions}</h4>
-                                    <small>Total Transactions</small>
+                                    <h4 class="text-warning">${response.statistics.totalSteps}</h4>
+                                    <small>Total Steps</small>
                                 </div>
                             </div>
+                        </div>
+                        <hr>
+                        <h6><i class="fas fa-cubes"></i> QR Code Blocks (One Block per QR)</h6>
+                        <div class="blocks-history" style="max-height: 500px; overflow-y: auto;">
+                            ${response.blocks && response.blocks.length > 0 ? 
+                                response.blocks.slice(0, 8).map(block => `
+                                    <div class="card mb-3" style="border: 2px solid #007bff;">
+                                        <div class="card-header bg-light">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <h6 class="mb-0">
+                                                        <i class="fas fa-qrcode"></i> ${block.qrCode}
+                                                        <span class="badge bg-info ms-2">${block.species}</span>
+                                                    </h6>
+                                                    <small class="text-muted">Block: ${block.blockHash.substring(0, 12)}...</small>
+                                                </div>
+                                                <div class="text-end">
+                                                    <span class="badge ${block.currentStatus === 'approved' ? 'bg-success' : block.currentStatus === 'rejected' ? 'bg-danger' : block.currentStatus === 'tested' ? 'bg-info' : 'bg-secondary'}">${block.currentStatus}</span>
+                                                    <br><small class="text-muted">${block.totalSteps} step${block.totalSteps > 1 ? 's' : ''}</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="card-body p-2">
+                                            <div class="supply-chain-timeline">
+                                                ${block.steps.map((step, index) => `
+                                                    <div class="timeline-step d-flex align-items-center mb-2 ${index === block.steps.length - 1 ? '' : 'border-bottom pb-2'}">
+                                                        <div class="step-icon me-3">
+                                                            <div class="rounded-circle d-flex align-items-center justify-content-center" 
+                                                                 style="width: 35px; height: 35px; background-color: ${step.type === 'collection_event' ? '#007bff' : '#28a745'}; color: white;">
+                                                                <i class="fas ${step.type === 'collection_event' ? 'fa-leaf' : 'fa-vial'} fa-sm"></i>
+                                                            </div>
+                                                        </div>
+                                                        <div class="flex-grow-1">
+                                                            <h6 class="mb-1">${step.stepNumber}. ${step.type === 'collection_event' ? 'Collection' : 'Quality Testing'}</h6>
+                                                            <p class="mb-1 small">
+                                                                <strong>${step.actor}</strong> (${step.role})
+                                                                ${step.type === 'collection_event' ? 
+                                                                    `- Collected ${block.quantity}kg of ${block.species}` :
+                                                                    `- Result: ${step.data.overallResult}, Moisture: ${step.data.moisture}%`
+                                                                }
+                                                            </p>
+                                                            <small class="text-muted"><i class="fas fa-clock"></i> ${new Date(step.timestamp).toLocaleString()}</small>
+                                                        </div>
+                                                    </div>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('') : 
+                                '<p class="text-muted">No blocks found</p>'
+                            }
+                            ${response.blocks && response.blocks.length > 8 ? 
+                                `<p class="text-center text-muted mt-2">... and ${response.blocks.length - 8} more blocks</p>` : ''
+                            }
                         </div>
                     </div>
                 `;
@@ -954,6 +1018,122 @@ class AyurvedicApp {
             }
         } catch (error) {
             this.showAlert('Error loading blockchain info: ' + error.message, 'danger');
+        }
+    }
+
+    showCreateUserForm() {
+        const html = `
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6><i class="fas fa-user-plus"></i> Create New User</h6>
+                </div>
+                <div class="card-body">
+                    <form id="createUserForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Username</label>
+                                    <input type="text" class="form-control" id="newUsername" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="newEmail" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Full Name</label>
+                                    <input type="text" class="form-control" id="newFullName" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Password</label>
+                                    <input type="password" class="form-control" id="newPassword" required minlength="6">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Organization Type</label>
+                            <select class="form-control" id="newOrgType" required>
+                                <option value="">Select Role</option>
+                                <option value="collector">Farmer/Collector</option>
+                                <option value="lab">Laboratory</option>
+                                <option value="admin">Administrator</option>
+                            </select>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save"></i> Create User
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="this.closest('.card').remove()">
+                                <i class="fas fa-times"></i> Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        
+        // Insert form after the users list
+        const usersList = document.getElementById('usersList');
+        usersList.insertAdjacentHTML('afterend', html);
+        
+        // Add form event listener
+        document.getElementById('createUserForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.createUser();
+        });
+    }
+
+    async createUser() {
+        const formData = {
+            username: document.getElementById('newUsername').value,
+            email: document.getElementById('newEmail').value,
+            fullName: document.getElementById('newFullName').value,
+            password: document.getElementById('newPassword').value,
+            organizationType: document.getElementById('newOrgType').value
+        };
+        
+        try {
+            const response = await this.apiCall('/api/protected/users', 'POST', formData);
+            
+            if (response.success) {
+                this.showAlert('User created successfully!', 'success');
+                document.getElementById('createUserForm').closest('.card').remove();
+                this.loadUsers(); // Refresh users list
+            } else {
+                this.showAlert(response.error || 'Failed to create user', 'danger');
+            }
+        } catch (error) {
+            this.showAlert('Error creating user: ' + error.message, 'danger');
+        }
+    }
+
+    async loadRecentActivity() {
+        try {
+            const response = await this.apiCall('/api/protected/analytics/recent-activity');
+            
+            if (response.success) {
+                const html = response.activities.slice(0, 10).map(activity => `
+                    <div class="alert alert-light">
+                        <h6><i class="fas ${activity.type === 'Collection Event' ? 'fa-leaf' : 'fa-vial'}"></i> ${activity.type}</h6>
+                        <p>${activity.description}</p>
+                        <small class="text-muted">
+                            <i class="fas fa-clock"></i> ${new Date(activity.timestamp).toLocaleString()}
+                            ${activity.qrCode ? `| QR: ${activity.qrCode}` : ''}
+                        </small>
+                    </div>
+                `).join('');
+                
+                document.getElementById('analyticsContent').innerHTML = html;
+            }
+        } catch (error) {
+            this.showAlert('Error loading recent activity: ' + error.message, 'danger');
         }
     }
 
@@ -969,6 +1149,8 @@ class AyurvedicApp {
             { name: 'Get All Collections', method: 'GET', endpoint: '/api/protected/collection-events', auth: true },
             { name: 'Get All Quality Tests', method: 'GET', endpoint: '/api/protected/quality-tests', auth: true },
             { name: 'Get My Collections', method: 'GET', endpoint: '/api/protected/collections/my-collections', auth: true },
+            { name: 'Get All Users', method: 'GET', endpoint: '/api/protected/users', auth: true },
+            { name: 'Recent Activity', method: 'GET', endpoint: '/api/protected/analytics/recent-activity', auth: true },
             { name: 'Blockchain Info', method: 'GET', endpoint: '/api/protected/blockchain-info', auth: true },
             { name: 'Verify QR Code (Public)', method: 'GET', endpoint: '/api/public/qr/HERB_SAMPLE123', auth: false }
         ];
@@ -1072,7 +1254,7 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM loaded, initializing app...');
     try {
-        app = new AyurvedicApp();
+        app = new HerbAbhilekhApp();
         console.log('App initialized successfully');
     } catch (error) {
         console.error('Error initializing app:', error);

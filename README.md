@@ -1,4 +1,4 @@
-# 🌿 Ayurvedic Network - Blockchain Traceability System
+# 🌿 Herb Abhilekh - Blockchain Traceability System
 
 A production-ready blockchain-based traceability system for Ayurvedic herbs and products, ensuring authenticity and quality from farm to consumer.
 

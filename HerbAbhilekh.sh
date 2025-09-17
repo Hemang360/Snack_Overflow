@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# AyurTrace - Simple Startup Script
-# Starts the complete Ayurvedic Herbs Traceability System
+# Herb Abhilekh - Simple Startup Script
+# Starts the complete Herb Abhilekh Traceability System
 
 set -e
 
@@ -247,7 +247,7 @@ verify_system() {
 show_final_status() {
     echo ""
     echo -e "${BLUE}=================================================="
-    echo "🎉 AyurTrace System is now running!"
+    echo "🎉 Herb Abhilekh System is now running!"
     echo "==================================================${NC}"
     echo ""
     echo -e "${GREEN}🌐 Frontend:${NC} http://localhost:8080"
