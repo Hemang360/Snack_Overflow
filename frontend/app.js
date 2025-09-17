@@ -131,14 +131,32 @@ class AyurvedicApp {
     }
 
     async register() {
+        // Debug: Check if form fields exist
+        const usernameField = document.getElementById('regUsername');
+        const emailField = document.getElementById('regEmail');
+        const passwordField = document.getElementById('regPassword');
+        const fullNameField = document.getElementById('regFullName');
+        const orgTypeField = document.getElementById('regOrgType');
+        
+        console.log('Form fields check:', {
+            username: usernameField ? usernameField.value : 'FIELD NOT FOUND',
+            email: emailField ? emailField.value : 'FIELD NOT FOUND',
+            password: passwordField ? passwordField.value : 'FIELD NOT FOUND',
+            fullName: fullNameField ? fullNameField.value : 'FIELD NOT FOUND',
+            orgType: orgTypeField ? orgTypeField.value : 'FIELD NOT FOUND'
+        });
+        
         const formData = {
-            username: document.getElementById('regUsername').value,
-            email: document.getElementById('regEmail').value,
-            password: document.getElementById('regPassword').value,
-            fullName: document.getElementById('regFullName').value,
-            organizationType: document.getElementById('regOrgType').value
+            username: usernameField ? usernameField.value : '',
+            email: emailField ? emailField.value : '',
+            password: passwordField ? passwordField.value : '',
+            fullName: fullNameField ? fullNameField.value : '',
+            organizationType: orgTypeField ? orgTypeField.value : ''
         };
 
+        // Debug: Log the form data
+        console.log('Registration form data:', formData);
+        
         if (!Object.values(formData).every(value => value.trim())) {
             this.showAlert('Please fill in all fields', 'warning');
             return;
@@ -159,7 +177,12 @@ class AyurvedicApp {
                 this.showAlert('Registration successful! Please login.', 'success');
                 this.showLogin();
             } else {
-                this.showAlert(data.error || 'Registration failed', 'danger');
+                console.error('Registration error details:', data);
+                let errorMessage = data.error || 'Registration failed';
+                if (data.details && Array.isArray(data.details)) {
+                    errorMessage += '\nDetails: ' + data.details.map(d => d.msg).join(', ');
+                }
+                this.showAlert(errorMessage, 'danger');
             }
         } catch (error) {
             this.showAlert('Registration error: ' + error.message, 'danger');
@@ -307,10 +330,7 @@ class AyurvedicApp {
                                     <h5><i class="fas fa-chart-line"></i> Analytics</h5>
                                 </div>
                                 <div class="card-body">
-                                    <button class="btn btn-info mb-2" onclick="app.loadRecentActivity()">
-                                        <i class="fas fa-history"></i> Recent Activity
-                                    </button>
-                                    <button class="btn btn-warning mb-2" onclick="app.loadBlockchainInfo()">
+                                    <button class="btn btn-info mb-2" onclick="app.loadBlockchainInfo()">
                                         <i class="fas fa-link"></i> Blockchain Info
                                     </button>
                                     <div id="analyticsContent"></div>
@@ -367,6 +387,11 @@ class AyurvedicApp {
                                             <label class="form-label">Quality Notes</label>
                                             <textarea class="form-control" id="qualityNotes" rows="3"></textarea>
                                         </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Herb Image</label>
+                                            <input type="file" class="form-control" id="herbImage" accept="image/*">
+                                            <div class="form-text">Upload an image of the collected herbs (optional)</div>
+                                        </div>
                                         <button type="submit" class="btn btn-primary">
                                             <i class="fas fa-save"></i> Create Collection
                                         </button>
@@ -407,8 +432,9 @@ class AyurvedicApp {
                                 <div class="card-body">
                                     <form id="qualityTestForm">
                                         <div class="mb-3">
-                                            <label class="form-label">Batch ID</label>
-                                            <input type="text" class="form-control" id="batchId" required>
+                                            <label class="form-label">QR Code</label>
+                                            <input type="text" class="form-control" id="qrCode" placeholder="Enter QR code of the collection" required>
+                                            <div class="form-text">Scan or enter the QR code from the herb collection</div>
                                         </div>
                                         <div class="mb-3">
                                             <label class="form-label">Test Date</label>
@@ -423,22 +449,41 @@ class AyurvedicApp {
                                             </div>
                                             <div class="col-md-6">
                                                 <div class="mb-3">
-                                                    <label class="form-label">Pesticides (ppm)</label>
-                                                    <input type="number" class="form-control" id="pesticides" step="0.01" min="0">
+                                                    <label class="form-label">Pesticides</label>
+                                                    <input type="text" class="form-control" id="pesticides" placeholder="e.g., Not Detected, 0.5 ppm">
                                                 </div>
                                             </div>
                                         </div>
                                         <div class="row">
                                             <div class="col-md-6">
                                                 <div class="mb-3">
-                                                    <label class="form-label">Heavy Metals (ppm)</label>
-                                                    <input type="number" class="form-control" id="heavyMetals" step="0.01" min="0">
+                                                    <label class="form-label">Heavy Metals</label>
+                                                    <input type="text" class="form-control" id="heavyMetals" placeholder="e.g., Within Limits, Below Detection">
                                                 </div>
                                             </div>
                                             <div class="col-md-6">
                                                 <div class="mb-3">
                                                     <label class="form-label">DNA Barcode</label>
                                                     <input type="text" class="form-control" id="dnaBarcode">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label class="form-label">Microbiological</label>
+                                                    <input type="text" class="form-control" id="microbiological" placeholder="e.g., Pass, Fail">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label class="form-label">Overall Result</label>
+                                                    <select class="form-control" id="overallResult" required>
+                                                        <option value="">Select Result</option>
+                                                        <option value="approved">Approved</option>
+                                                        <option value="rejected">Rejected</option>
+                                                        <option value="pending">Pending</option>
+                                                    </select>
                                                 </div>
                                             </div>
                                         </div>
@@ -612,27 +657,41 @@ class AyurvedicApp {
 
 
     async createCollection() {
-        const formData = {
-            species: document.getElementById('species').value,
-            collectorId: this.currentUser.username,
-            gpsCoordinates: {
-                latitude: parseFloat(document.getElementById('latitude').value) || 0,
-                longitude: parseFloat(document.getElementById('longitude').value) || 0
-            },
-            quantity: parseFloat(document.getElementById('quantity').value),
-            collectionDate: document.getElementById('collectionDate').value,
-            qualityNotes: document.getElementById('qualityNotes').value
-        };
+        // Use FormData for file upload
+        const formData = new FormData();
+        formData.append('species', document.getElementById('species').value);
+        formData.append('collectorId', this.currentUser.username);
+        formData.append('gpsCoordinates.latitude', parseFloat(document.getElementById('latitude').value) || 0);
+        formData.append('gpsCoordinates.longitude', parseFloat(document.getElementById('longitude').value) || 0);
+        formData.append('quantity', document.getElementById('quantity').value);
+        formData.append('collectionDate', document.getElementById('collectionDate').value);
+        formData.append('qualityNotes', document.getElementById('qualityNotes').value);
+        
+        // Add herb image if present
+        const herbImageInput = document.getElementById('herbImage');
+        if (herbImageInput && herbImageInput.files[0]) {
+            formData.append('herbImage', herbImageInput.files[0]);
+        }
 
         try {
-            const response = await this.apiCall('/api/protected/collection-events', 'POST', formData);
+            // Use fetch directly for FormData (not apiCall which always sends JSON)
+            const response = await fetch(`${this.apiBase}/api/protected/collection-events`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.currentToken}`
+                    // Don't set Content-Type for FormData - browser will set it automatically
+                },
+                body: formData
+            });
             
-            if (response.success) {
-                this.showAlert('Collection event created successfully!', 'success');
+            const result = await response.json();
+            
+            if (result.success) {
+                this.showAlert(`Collection created successfully! QR Code: ${result.qrCode}`, 'success');
                 document.getElementById('collectionForm').reset();
                 this.loadMyCollections();
             } else {
-                this.showAlert(response.error || 'Failed to create collection', 'danger');
+                this.showAlert(result.error || 'Failed to create collection', 'danger');
             }
         } catch (error) {
             this.showAlert('Error creating collection: ' + error.message, 'danger');
@@ -641,13 +700,15 @@ class AyurvedicApp {
 
     async createQualityTest() {
         const formData = {
-            batchId: document.getElementById('batchId').value,
+            qrCode: document.getElementById('qrCode').value,
             labId: this.currentUser.username,
             testDate: document.getElementById('testDate').value,
             moisture: parseFloat(document.getElementById('moisture').value) || null,
-            pesticides: parseFloat(document.getElementById('pesticides').value) || null,
-            heavyMetals: parseFloat(document.getElementById('heavyMetals').value) || null,
             dnaBarcode: document.getElementById('dnaBarcode').value,
+            pesticides: document.getElementById('pesticides').value,
+            heavyMetals: document.getElementById('heavyMetals').value,
+            microbiological: document.getElementById('microbiological').value,
+            overallResult: document.getElementById('overallResult').value,
             notes: document.getElementById('testNotes').value
         };
 
@@ -841,25 +902,6 @@ class AyurvedicApp {
         }
     }
 
-    async loadRecentActivity() {
-        try {
-            const response = await this.apiCall('/api/protected/analytics/recent-activity');
-            
-            if (response.success) {
-                const html = response.activities.slice(0, 10).map(activity => `
-                    <div class="alert alert-light">
-                        <h6>${activity.description}</h6>
-                        <small class="text-muted">${new Date(activity.timestamp).toLocaleString()}</small>
-                    </div>
-                `).join('');
-                
-                document.getElementById('analyticsContent').innerHTML = html;
-            }
-        } catch (error) {
-            this.showAlert('Error loading recent activity: ' + error.message, 'danger');
-        }
-    }
-
     async loadBlockchainInfo() {
         try {
             const response = await this.apiCall('/api/protected/blockchain-info');
@@ -867,11 +909,44 @@ class AyurvedicApp {
             if (response.success) {
                 const html = `
                     <div class="alert alert-info">
-                        <h6>Blockchain Network Status</h6>
-                        <p><strong>Chain Length:</strong> ${response.chainLength}</p>
-                        <p><strong>Network Status:</strong> ${response.networkStatus}</p>
-                        <p><strong>Peer Count:</strong> ${response.peerCount}</p>
-                        <p><strong>Latest Block:</strong> ${response.latestBlock.hash}</p>
+                        <h6><i class="fas fa-cube"></i> Blockchain Network Status</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Network Status:</strong> <span class="badge bg-success">${response.networkStatus}</span></p>
+                                <p><strong>Chain Length:</strong> ${response.chainLength} blocks</p>
+                                <p><strong>Peer Count:</strong> ${response.peerCount}</p>
+                                <p><strong>Channel:</strong> ${response.channelName}</p>
+                                <p><strong>Chaincode:</strong> ${response.chaincodeName}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Latest Block Hash:</strong><br><code>${response.latestBlock.hash}</code></p>
+                                <p><strong>Block Number:</strong> ${response.latestBlock.number}</p>
+                                <p><strong>Block Time:</strong> ${new Date(response.latestBlock.timestamp).toLocaleString()}</p>
+                                <p><strong>Transactions in Block:</strong> ${response.latestBlock.transactionCount}</p>
+                            </div>
+                        </div>
+                        <hr>
+                        <h6><i class="fas fa-chart-bar"></i> Blockchain Statistics</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="text-center">
+                                    <h4 class="text-primary">${response.statistics.totalCollections}</h4>
+                                    <small>Collection Events</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-center">
+                                    <h4 class="text-success">${response.statistics.totalQualityTests}</h4>
+                                    <small>Quality Tests</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-center">
+                                    <h4 class="text-info">${response.statistics.totalTransactions}</h4>
+                                    <small>Total Transactions</small>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 `;
                 
@@ -893,11 +968,9 @@ class AyurvedicApp {
             { name: 'Health Check', method: 'GET', endpoint: '/health', auth: false },
             { name: 'Get All Collections', method: 'GET', endpoint: '/api/protected/collection-events', auth: true },
             { name: 'Get All Quality Tests', method: 'GET', endpoint: '/api/protected/quality-tests', auth: true },
-            { name: 'Get All Products', method: 'GET', endpoint: '/api/protected/product-batches', auth: true },
-            { name: 'Dashboard Stats', method: 'GET', endpoint: '/api/protected/analytics/dashboard-stats', auth: true },
-            { name: 'Recent Activity', method: 'GET', endpoint: '/api/protected/analytics/recent-activity', auth: true },
+            { name: 'Get My Collections', method: 'GET', endpoint: '/api/protected/collections/my-collections', auth: true },
             { name: 'Blockchain Info', method: 'GET', endpoint: '/api/protected/blockchain-info', auth: true },
-            { name: 'Get All Users', method: 'GET', endpoint: '/api/protected/users', auth: true }
+            { name: 'Verify QR Code (Public)', method: 'GET', endpoint: '/api/public/qr/HERB_SAMPLE123', auth: false }
         ];
 
         const html = endpoints.map(ep => `
