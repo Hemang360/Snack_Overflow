@@ -80,31 +80,43 @@ fun RecordScreen(
     ) {
         Scaffold(
             topBar = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
-                        onClick = {
-                            navController.navigate(Screen.Dashboard.route)
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Go Back to Home Page",
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-                    TopAppBar(
-                        title = {
+                Spacer(Modifier.height(12.dp))
+//                    IconButton(
+//                        onClick = {
+//                            navController.navigate(Screen.Dashboard.route)
+//                        }
+//                    ) {
+//                        Icon(
+//                            imageVector = Icons.Default.ArrowBack,
+//                            contentDescription = "Go Back to Home Page",
+//                            modifier = Modifier.size(28.dp)
+//                        )
+//                    }
+                TopAppBar(
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(
+                                onClick = {
+                                    navController.navigate(Screen.Dashboard.route)
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowBack,
+                                    contentDescription = "Go Back to Home Page",
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
                             Text(
                                 "Herb Batch Record",
                                 style = MaterialTheme.typography.displayLarge.copy(fontSize = 28.sp)
                             )
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.background,
-                            titleContentColor = MaterialTheme.colorScheme.onBackground
-                        )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                        titleContentColor = MaterialTheme.colorScheme.onBackground
                     )
-                }
+                )
             },
             containerColor = MaterialTheme.colorScheme.background
         ) { paddingValues ->
