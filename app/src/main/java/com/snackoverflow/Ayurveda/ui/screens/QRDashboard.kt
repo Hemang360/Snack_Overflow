@@ -62,7 +62,7 @@ fun HerbActionScreen(navController: NavController) {
                     )
                 },
                 onClick = {
-                    navController.navigate(Screen.LogData.route)
+                    navController.navigate(Screen.CollectorReport.route)
                 }
             )
         }

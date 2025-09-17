@@ -1,5 +1,6 @@
 package com.snackoverflow.Ayurveda.ui.navigation
 
+import DataCollectionScreen
 import LoginScreen
 import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
@@ -17,13 +18,14 @@ sealed class Screen(val route: String) {
     object Record : Screen("record")
     object Dashboard : Screen("dashboard")
     object LogData : Screen("logData")
+    object CollectorReport : Screen(route = "collector-report")
 }
 @Composable
 fun HerbAbhilekh() {
     val navController = rememberNavController()
     NavHost(
         navController = navController,
-        startDestination = Screen.Dashboard.route
+        startDestination = Screen.CollectorReport.route
     ) {
         composable(Screen.Record.route) {
             RecordScreen(sharedRecordViewMode,navController)
@@ -33,6 +35,10 @@ fun HerbAbhilekh() {
         }
         composable(Screen.LogData.route){
             PatientDataActionScreen(navController)
+        }
+        composable(route = Screen.CollectorReport.route) {
+            DataCollectionScreen(navController)
+
         }
     }
 }
