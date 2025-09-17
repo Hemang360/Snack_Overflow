@@ -1,12 +1,17 @@
+// REQUIRED IMPORTS
+import android.Manifest
 import android.app.DatePickerDialog
+import android.content.pm.PackageManager
 import android.widget.DatePicker
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.MyLocation // For the location icon
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,8 +19,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
-import com.snackoverflow.Ayurveda.ui.navigation.Screen
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.snackoverflow.Ayurveda.ui.navigation.Screen // Make sure this path is correct for your project
 import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,9 +41,29 @@ fun DataCollectionScreen(navController: NavController) {
 
     val context = LocalContext.current
 
-    // *** NEW: Validation Logic ***
-    // This derived state checks if all fields are filled.
-    // The button's 'enabled' state will depend on this value.
+    // *** NEW: Location Client and Permission Launcher ***
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+        onResult = { permissions ->
+            if (permissions.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false) ||
+                permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false)) {
+                // Permission Granted: Try to get location again
+                fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                    .addOnSuccessListener { location ->
+                        if (location != null) {
+                            latitude = location.latitude.toString()
+                            longitude = location.longitude.toString()
+                        }
+                    }
+            } else {
+                // Permission Denied: Handle appropriately (e.g., show a snackbar)
+            }
+        }
+    )
+
+    // Validation Logic
     val isFormValid by remember(
         species,
         collectorId,
@@ -52,7 +80,6 @@ fun DataCollectionScreen(navController: NavController) {
                     latitude.isNotBlank() &&
                     longitude.isNotBlank() &&
                     quantity.isNotBlank() &&
-                    // Check against the initial placeholder text
                     collectionDate != "Select Collection Date" &&
                     qualityNotes.isNotBlank() &&
                     herbImage.isNotBlank()
@@ -72,6 +99,7 @@ fun DataCollectionScreen(navController: NavController) {
             collectionDate = "$selectedYear-${selectedMonth + 1}-$dayOfMonth"
         }, year, month, day
     )
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -116,23 +144,61 @@ fun DataCollectionScreen(navController: NavController) {
                 )
             }
 
-            // Input fields for GPS Coordinates
+            // *** MODIFIED: GPS Coordinates Section ***
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = latitude,
-                        onValueChange = { latitude = it },
-                        label = { Text("Latitude") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = longitude,
-                        onValueChange = { longitude = it },
-                        label = { Text("Longitude") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f)
-                    )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = {
+                            // Check if permissions are granted
+                            val hasFineLocation = ContextCompat.checkSelfPermission(
+                                context, Manifest.permission.ACCESS_FINE_LOCATION
+                            ) == PackageManager.PERMISSION_GRANTED
+                            val hasCoarseLocation = ContextCompat.checkSelfPermission(
+                                context, Manifest.permission.ACCESS_COARSE_LOCATION
+                            ) == PackageManager.PERMISSION_GRANTED
+
+                            if (hasFineLocation || hasCoarseLocation) {
+                                // Permissions are granted, get the location
+                                fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                                    .addOnSuccessListener { location ->
+                                        if (location != null) {
+                                            latitude = location.latitude.toString()
+                                            longitude = location.longitude.toString()
+                                        }
+                                    }
+                            } else {
+                                // Permissions are not granted, request them
+                                locationPermissionLauncher.launch(
+                                    arrayOf(
+                                        Manifest.permission.ACCESS_FINE_LOCATION,
+                                        Manifest.permission.ACCESS_COARSE_LOCATION
+                                    )
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(imageVector = Icons.Default.MyLocation, contentDescription = "Get Location", modifier = Modifier.padding(end = 8.dp))
+                        Text("Get Current Location")
+                    }
+
+                    // Display the fetched coordinates
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = latitude,
+                            onValueChange = {}, // Not user-editable
+                            readOnly = true,
+                            label = { Text("Latitude") },
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = longitude,
+                            onValueChange = {}, // Not user-editable
+                            readOnly = true,
+                            label = { Text("Longitude") },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
 
@@ -164,7 +230,9 @@ fun DataCollectionScreen(navController: NavController) {
                     value = qualityNotes,
                     onValueChange = { qualityNotes = it },
                     label = { Text("Quality Notes") },
-                    modifier = Modifier.fillMaxWidth().height(120.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp)
                 )
             }
 
@@ -182,9 +250,9 @@ fun DataCollectionScreen(navController: NavController) {
             item {
                 Button(
                     onClick = { /* TODO: Add data submission logic here */ },
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    // *** MODIFIED PART ***
-                    // The button is only enabled when isFormValid is true
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
                     enabled = isFormValid
                 ) {
                     Text("Submit Data")

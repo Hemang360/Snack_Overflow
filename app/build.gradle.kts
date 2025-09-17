@@ -43,6 +43,13 @@ android {
 
 dependencies {
 
+    // Icons Extended
+    implementation("androidx.compose.material:material-icons-extended-android:1.6.4")
+
+
+    // Location Services
+    implementation("com.google.android.gms:play-services-location:21.2.0")
+
     // Import the Firebase BoM
     implementation(platform("com.google.firebase:firebase-bom:34.2.0"))
 
