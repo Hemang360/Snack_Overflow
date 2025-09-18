@@ -1,9 +1,9 @@
 package com.snackoverflow.Ayurveda.ui.screens
 
-import LoginScreenTheme
+import LoginScreenTheme // Assuming this is in the correct package
 import android.widget.Toast
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -15,9 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -27,7 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.snackoverflow.Ayurveda.R // Make sure this import path is correct
-import com.snackoverflow.Ayurveda.RegisterRequest // Import the new data class
+import com.snackoverflow.Ayurveda.RegisterRequest // Import the data class
 import com.snackoverflow.Ayurveda.ui.navigation.Screen
 import com.snackoverflow.Ayurveda.viewmodels.RegistrationState
 import com.snackoverflow.Ayurveda.viewmodels.SignUpViewModel
@@ -81,24 +79,20 @@ fun SignUpScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.Center
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.login_backdrop_top),
-                contentDescription = "Sign up backdrop",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.3f)
-            )
+            // Removed the Image composable for 'login_backdrop_top'
 
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp, vertical = 32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                // ... (Header Text is unchanged) ...
+                Spacer(Modifier.height(32.dp))
+                // Header Text
                 Text(text = "Create Account", style = MaterialTheme.typography.headlineMedium)
                 Text(
                     text = "Sign up to get started",
@@ -107,7 +101,7 @@ fun SignUpScreen(
                 )
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // ... (All OutlinedTextFields and the Dropdown are unchanged) ...
+                // Input Fields
                 OutlinedTextField(value = fullName, onValueChange = { fullName = it }, label = { Text("Full Name") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(value = username, onValueChange = { username = it }, label = { Text("Username") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
@@ -136,7 +130,7 @@ fun SignUpScreen(
                 }
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Sign Up Button - Updated onClick logic
+                // Sign Up Button
                 Button(
                     onClick = {
                         if (password != confirmPassword) {
@@ -168,7 +162,7 @@ fun SignUpScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // ... (Navigation to Login Screen is unchanged) ...
+                // Navigation to Login Screen
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                     Text(text = "Already have an account?", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     TextButton(onClick = { navController.navigate(Screen.Login.route) }) {

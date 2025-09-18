@@ -1,6 +1,7 @@
 import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -117,27 +118,22 @@ fun LoginScreen(navController: NavController) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.Center
         ) {
-            // Top decorative image
-            Image(
-                painter = painterResource(id = R.drawable.login_backdrop_top),
-                contentDescription = "Login backdrop",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.3f)
-            )
+            // Removed the Image composable for 'login_backdrop_top'
 
             // Form content
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp, vertical = 32.dp), // Adjusted vertical padding as there's no top image
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
+                Spacer(Modifier.height(32.dp))
                 Text(
-                    text = "Welcome Back!",
+                    text = "Welcome!",
                     style = MaterialTheme.typography.headlineMedium
                 )
                 Text(
@@ -254,6 +250,10 @@ fun LoginScreen(navController: NavController) {
 @Composable
 fun LoginScreenPreview() {
     LoginScreenTheme {
-        //LoginScreen()
+        // Since NavController is required, we can't directly preview LoginScreen without mocking it.
+        // For a simple preview, you might create a wrapper Composable that provides a dummy NavController
+        // or just preview the individual components within LoginScreen.
+        // For now, leaving it commented out as per the original code.
+        // LoginScreen(navController = rememberNavController())
     }
 }

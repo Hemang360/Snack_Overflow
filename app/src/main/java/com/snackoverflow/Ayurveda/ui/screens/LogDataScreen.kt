@@ -4,14 +4,18 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.snackoverflow.Ayurveda.ui.navigation.Screen
@@ -20,7 +24,7 @@ import com.snackoverflow.Ayurveda.ui.navigation.Screen
 fun PatientDataActionScreen(navController: NavController) {
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = lightGreenBg
+        color = lightGreen
     ) {
         Column {
             Spacer(modifier = Modifier.height(48.dp))
@@ -50,7 +54,7 @@ fun PatientDataActionScreen(navController: NavController) {
                             imageVector = Icons.Default.AccountCircle,
                             contentDescription = "Log Patient Data",
                             modifier = Modifier.size(44.dp),
-                            tint = darkGreenText
+                            tint = darkGreen
                         )
                     },
                     onClick = { /*TODO: Handle Navigation to Patient Data Logging Screen*/ }
@@ -65,7 +69,7 @@ fun PatientDataActionScreen(navController: NavController) {
                             imageVector = Icons.Default.DateRange,
                             contentDescription = "Lab Reports",
                             modifier = Modifier.size(44.dp),
-                            tint = darkGreenText
+                            tint = darkGreen
                         )
                     },
                     onClick = { /*TODO: Handle Navigation to Lab Reports Screen*/ }
@@ -80,7 +84,7 @@ fun PatientDataActionScreen(navController: NavController) {
                             imageVector = Icons.Default.MailOutline,
                             contentDescription = "Medical Reports",
                             modifier = Modifier.size(44.dp),
-                            tint = darkGreenText
+                            tint = darkGreen
                         )
                     },
                     onClick = { /*TODO: Handle Navigation to Medical Reports Screen*/ }
@@ -94,44 +98,44 @@ fun PatientDataActionScreen(navController: NavController) {
  * This is the same reusable ActionButton composable from the reference file.
  * No changes are needed here.
  */
-//@Composable
-//fun ActionButton(
-//    text: String,
-//    icon: @Composable () -> Unit,
-//    onClick: () -> Unit
-//) {
-//    Button(
-//        onClick = onClick,
-//        shape = RoundedCornerShape(16.dp),
-//        colors = ButtonDefaults.buttonColors(
-//            containerColor = Color.White,
-//            contentColor = darkGreenText
-//        ),
-//        modifier = Modifier
-//            .fillMaxWidth()
-//            .height(90.dp),
-//        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
-//    ) {
-//        Row(
-//            modifier = Modifier.fillMaxWidth(),
-//            verticalAlignment = Alignment.CenterVertically,
-//            horizontalArrangement = Arrangement.Start
-//        ) {
-//            Spacer(modifier = Modifier.width(8.dp))
-//
-//            icon()
-//
-//            Spacer(modifier = Modifier.width(20.dp))
-//
-//            Text(
-//                text = text,
-//                fontWeight = FontWeight.Bold,
-//                fontSize = 18.sp,
-//                color = darkGreenText
-//            )
-//        }
-//    }
-//}
+@Composable
+fun ActionButton(
+    text: String,
+    icon: @Composable () -> Unit,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color.White,
+            contentColor = darkGreen
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(90.dp),
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            Spacer(modifier = Modifier.width(8.dp))
+
+            icon()
+
+            Spacer(modifier = Modifier.width(20.dp))
+
+            Text(
+                text = text,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = darkGreen
+            )
+        }
+    }
+}
 
 @Preview(showBackground = true, device = "id:pixel_6")
 @Composable
