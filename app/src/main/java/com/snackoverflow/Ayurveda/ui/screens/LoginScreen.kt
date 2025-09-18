@@ -12,7 +12,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -22,12 +21,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.snackoverflow.Ayurveda.R
 
+// Font and Theme definitions remain the same...
 val KalniaFontFamily = FontFamily(
     Font(R.font.kalnia_thin, FontWeight.Thin),
     Font(R.font.kalnia_extralight, FontWeight.ExtraLight),
@@ -97,11 +96,10 @@ fun LoginScreenTheme(
 
 @Composable
 fun LoginScreen() {
-    var email by rememberSaveable { mutableStateOf("") }
+    // State holders for username, password, and password visibility
+    var username by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var isPasswordVisible by rememberSaveable { mutableStateOf(false) }
-    var selectedRole by rememberSaveable { mutableStateOf<String?>(null) }
-    var uniqueId by rememberSaveable { mutableStateOf("") }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -110,8 +108,9 @@ fun LoginScreen() {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState()) // Makes the column scrollable
         ) {
+            // Top decorative image
             Image(
                 painter = painterResource(id = R.drawable.login_backdrop_top),
                 contentDescription = "Login backdrop",
@@ -121,6 +120,7 @@ fun LoginScreen() {
                     .fillMaxHeight(0.3f)
             )
 
+            // Form content
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -139,17 +139,19 @@ fun LoginScreen() {
 
                 Spacer(modifier = Modifier.height(32.dp))
 
+                // Username input field
                 OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    label = { Text("Email Address") },
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("Username") },
                     modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                     singleLine = true
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Password input field
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
@@ -170,16 +172,18 @@ fun LoginScreen() {
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                // Login button
                 Button(
-                    onClick = { /* TODO: Handle email login */ },
+                    onClick = { /* TODO: Handle username/password login */ },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(text = "LOGIN", modifier = Modifier.padding(vertical = 8.dp))
                 }
 
-                // SIGN UP OPTION ADDED HERE
                 Spacer(modifier = Modifier.height(16.dp))
+
+                // Sign up option
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center,
@@ -199,72 +203,6 @@ fun LoginScreen() {
                         )
                     }
                 }
-                // END OF ADDED CODE
-
-                Spacer(modifier = Modifier.height(24.dp)) // Adjusted spacer for better balance
-
-                Text(
-                    text = "LOGIN AS",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                OutlinedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                ) {
-                    val roles = listOf("Viewer", "Farmer", "Lab Official", "Distributor")
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(IntrinsicSize.Min),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        roles.forEachIndexed { index, role ->
-                            val isSelected = (selectedRole == role)
-                            Button(
-                                onClick = {
-                                    selectedRole = role
-                                    if (role == "Viewer") {
-                                        uniqueId = ""
-                                    }
-                                },
-                                modifier = Modifier.weight(1f),
-                                shape = RectangleShape,
-                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                                    contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            ) {
-                                Text(
-                                    text = role,
-                                    fontSize = 12.sp,
-                                    textAlign = TextAlign.Center,
-                                    lineHeight = 16.sp
-                                )
-                            }
-
-                            if (index < roles.size - 1) {
-                                VerticalDivider()
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                OutlinedTextField(
-                    value = uniqueId,
-                    onValueChange = { uniqueId = it },
-                    label = { Text("Unique Authentication ID") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    enabled = selectedRole != "Viewer"
-                )
             }
         }
     }
