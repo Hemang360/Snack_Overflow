@@ -187,7 +187,7 @@ fun DataCollectionScreen(navController: NavController) {
                         scope.launch {
                             isLoading = true
                             try {
-                                val jwtToken = "JeyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjQ0ZDI0ZjFkLTM1ZmUtNGY1Ni05N2E1LTVjZWJiODEyYThhZCIsInVzZXJuYW1lIjoidGVzdHVzZXIiLCJyb2xlIjoiY29sbGVjdG9yIiwicGVybWlzc2lvbnMiOlsiY3JlYXRlOmNvbGxlY3Rpb24iLCJ2aWV3OmNvbGxlY3Rpb24iXSwiaWF0IjoxNzU4MTM5NDc0LCJleHAiOjE3NTgyMjU4NzR9.cU6W-alBpWd-G3yJAuEcxW1NOtFgTWEjvSUHPAnoTT0"
+                                val jwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFlMzM3MzNmLTQ3NWMtNDE4MS1iYmVhLThlOTVmMmE2MDE3YyIsInVzZXJuYW1lIjoieG9ueW5peCIsInJvbGUiOiJjb2xsZWN0b3IiLCJwZXJtaXNzaW9ucyI6WyJjcmVhdGU6Y29sbGVjdGlvbiIsInZpZXc6Y29sbGVjdGlvbiJdLCJpYXQiOjE3NTgxOTA1MjYsImV4cCI6MTc1ODI3NjkyNn0.1g1oiGEY16uTjghODAEdxk73cCc1NGsb7362Hv37LjA"
                                 val locationJsonString = Json.encodeToString(LocationData(latitude.toDouble(), longitude.toDouble()))
 
                                 val response = client.post("https://unenlightening-lisha-unsurveyable.ngrok-free.app/api/protected/collection-events") {
