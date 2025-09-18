@@ -25,7 +25,9 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import com.snackoverflow.Ayurveda.R
+import com.snackoverflow.Ayurveda.ui.navigation.Screen
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.launch
 
@@ -98,7 +100,7 @@ fun LoginScreenTheme(
 }
 
 @Composable
-fun LoginScreen() {
+fun LoginScreen(navController: NavController) {
     // State holders
     var username by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
@@ -189,7 +191,7 @@ fun LoginScreen() {
 
                                 if (response.status.isSuccess()) {
                                     Log.d("LoginScreen", "Login successful!")
-                                    // TODO: Navigate to home screen or save auth token
+                                    navController.navigate(Screen.Dashboard)
                                 } else {
                                     Log.e("LoginScreen", "Login failed with status: ${response.status}")
                                     // TODO: Show a Snackbar or Toast with an error message
@@ -230,7 +232,9 @@ fun LoginScreen() {
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    TextButton(onClick = { /* TODO: Handle navigation to sign up screen */ }) {
+                    TextButton(onClick = {
+                        navController.navigate(route = Screen.Register.route)
+                    }) {
                         Text(
                             text = "Sign Up",
                             style = MaterialTheme.typography.bodyMedium,
@@ -248,6 +252,6 @@ fun LoginScreen() {
 @Composable
 fun LoginScreenPreview() {
     LoginScreenTheme {
-        LoginScreen()
+        //LoginScreen()
     }
 }

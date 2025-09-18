@@ -17,8 +17,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             LoginScreenTheme {
-                LoginScreen()
-                //HerbAbhilekh()
+                HerbAbhilekh()
             }
         }
     }

@@ -22,30 +22,30 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import com.snackoverflow.Ayurveda.R // Make sure this import path is correct for your project
+import com.snackoverflow.Ayurveda.ui.navigation.Screen
 
-// You can move these theme/typography definitions to a central Theme.kt file
-// if you haven't already. I've included them here for a complete example.
 
-/*
-val KalniaFontFamily = ...
-val GolosTextFontFamily = ...
-val LoginTypography = ...
-private val LoginColorScheme = ...
-
+@OptIn(ExperimentalMaterial3Api::class) // Required for ExposedDropdownMenuBox
 @Composable
-fun LoginScreenTheme(content: @Composable () -> Unit) { ... }
-*/
-
-
-@Composable
-fun SignUpScreen() {
+fun SignUpScreen(navController: NavController) {
+    // State for all form fields
     var fullName by rememberSaveable { mutableStateOf("") }
+    var username by rememberSaveable { mutableStateOf("") } // New field
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var confirmPassword by rememberSaveable { mutableStateOf("") }
+
+    // State for password visibility
     var isPasswordVisible by rememberSaveable { mutableStateOf(false) }
     var isConfirmPasswordVisible by rememberSaveable { mutableStateOf(false) }
+
+    // State for Organization Type dropdown
+    val organizationOptions = listOf("collector", "lab", "admin")
+    var isDropdownExpanded by remember { mutableStateOf(false) }
+    var selectedOrganization by rememberSaveable { mutableStateOf(organizationOptions[0]) }
+
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -83,6 +83,7 @@ fun SignUpScreen() {
 
                 Spacer(modifier = Modifier.height(32.dp))
 
+                // Full Name Input
                 OutlinedTextField(
                     value = fullName,
                     onValueChange = { fullName = it },
@@ -93,6 +94,18 @@ fun SignUpScreen() {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Username Input (New)
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("Username") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Email Input
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
@@ -104,6 +117,7 @@ fun SignUpScreen() {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Password Input
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
@@ -124,6 +138,7 @@ fun SignUpScreen() {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Confirm Password Input
                 OutlinedTextField(
                     value = confirmPassword,
                     onValueChange = { confirmPassword = it },
@@ -142,10 +157,45 @@ fun SignUpScreen() {
                     }
                 )
 
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Organization Type Dropdown (New)
+                ExposedDropdownMenuBox(
+                    expanded = isDropdownExpanded,
+                    onExpandedChange = { isDropdownExpanded = !isDropdownExpanded },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth(),
+                        readOnly = true,
+                        value = selectedOrganization,
+                        onValueChange = {},
+                        label = { Text("Organization Type") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isDropdownExpanded) }
+                    )
+                    ExposedDropdownMenu(
+                        expanded = isDropdownExpanded,
+                        onDismissRequest = { isDropdownExpanded = false }
+                    ) {
+                        organizationOptions.forEach { selectionOption ->
+                            DropdownMenuItem(
+                                text = { Text(selectionOption) },
+                                onClick = {
+                                    selectedOrganization = selectionOption
+                                    isDropdownExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(24.dp))
 
+                // Sign Up Button
                 Button(
-                    onClick = { /* TODO: Handle signup logic. Assign "Viewer" role here. */ },
+                    onClick = { /* TODO: Handle signup logic with fullName, username, email, password, and selectedOrganization */ },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp)
                 ) {
@@ -154,6 +204,7 @@ fun SignUpScreen() {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Navigation to Login Screen
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center,
@@ -164,7 +215,9 @@ fun SignUpScreen() {
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    TextButton(onClick = { /* TODO: Handle navigation to login screen */ }) {
+                    TextButton(onClick = {
+                        navController.navigate(Screen.Login.route)
+                    }) {
                         Text(
                             text = "Log In",
                             style = MaterialTheme.typography.bodyMedium,
@@ -173,11 +226,6 @@ fun SignUpScreen() {
                         )
                     }
                 }
-                Text(
-                    text = "You can only make a viewer account",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
         }
     }
@@ -188,6 +236,7 @@ fun SignUpScreen() {
 fun SignUpScreenPreview() {
     // Assuming LoginScreenTheme is accessible here
     LoginScreenTheme {
-        SignUpScreen()
+        // SignUpScreen() // You'll need to provide a NavController for the preview,
+        // or use a library that handles preview NavControllers.
     }
 }
