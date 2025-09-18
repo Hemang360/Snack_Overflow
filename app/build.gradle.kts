@@ -45,6 +45,9 @@ android {
 
 dependencies {
 
+    // Image Handling
+    implementation("io.coil-kt:coil-compose:2.6.0")
+
     // Ktor Client
     val ktorVersion = "2.3.11" // Make sure this version is consistent
     implementation("io.ktor:ktor-client-core:$ktorVersion")
