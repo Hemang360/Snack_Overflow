@@ -26,6 +26,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.snackoverflow.Ayurveda.AuthService
+import com.snackoverflow.Ayurveda.LoginRequest
 import com.snackoverflow.Ayurveda.R
 import com.snackoverflow.Ayurveda.ui.navigation.Screen
 import io.ktor.http.isSuccess
@@ -191,7 +193,7 @@ fun LoginScreen(navController: NavController) {
 
                                 if (response.status.isSuccess()) {
                                     Log.d("LoginScreen", "Login successful!")
-                                    navController.navigate(Screen.Dashboard)
+                                    navController.navigate(Screen.Dashboard.route)
                                 } else {
                                     Log.e("LoginScreen", "Login failed with status: ${response.status}")
                                     // TODO: Show a Snackbar or Toast with an error message

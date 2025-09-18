@@ -1,4 +1,4 @@
-// AuthService.kt
+package com.snackoverflow.Ayurveda
 
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
@@ -16,9 +16,17 @@ data class LoginRequest(
     val password: String
 )
 
+@Serializable
+data class RegisterRequest(
+    val username: String,
+    val email: String,
+    val password: String,
+    val fullName: String,
+    val organizationType: String
+)
+
 object AuthService {
     private val client = HttpClient(CIO) {
-        // Configure JSON serialization
         install(ContentNegotiation) {
             json(Json {
                 prettyPrint = true
@@ -34,6 +42,13 @@ object AuthService {
         return client.post("$BASE_URL/api/auth/login") {
             contentType(ContentType.Application.Json)
             setBody(loginRequest)
+        }
+    }
+
+    suspend fun registerUser(registerRequest: RegisterRequest): HttpResponse {
+        return client.post("$BASE_URL/api/auth/register") {
+            contentType(ContentType.Application.Json)
+            setBody(registerRequest)
         }
     }
 }
