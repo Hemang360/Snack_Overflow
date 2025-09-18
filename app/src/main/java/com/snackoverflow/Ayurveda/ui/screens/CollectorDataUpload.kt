@@ -147,7 +147,7 @@ fun DataCollectionScreen(navController: NavController) {
         ) {
             // --- Form Fields ---
             item { OutlinedTextField(value = species, onValueChange = { species = it }, label = { Text("Species") }, modifier = Modifier.fillMaxWidth()) }
-            item { OutlinedTextField(value = collectorId, onValueChange = { collectorId = it }, label = { Text("Collector ID") }, modifier = Modifier.fillMaxWidth()) }
+            item { OutlinedTextField(value = collectorId, onValueChange = { collectorId = it }, label = { Text("Full Name") }, modifier = Modifier.fillMaxWidth()) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = {
