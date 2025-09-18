@@ -1,32 +1,66 @@
-# 🌿 Herb Abhilekh - Blockchain Traceability System
+# Herb AbhiLekh 
 
-A production-ready blockchain-based traceability system for Ayurvedic herbs and products, ensuring authenticity and quality from farm to consumer.
+This is the blockchain branch of the project which hosts the blockchain + current working apis for backend to acess into the ChainCode.
+## Getting started with Herb AbhiLekh
 
-## 🎯 Problem Solved
-
-This system addresses the fragmented Ayurvedic herbal supply chain by providing:
-- **Immutable blockchain records** of every step from collection to consumer
-- **Geo-tagged collection events** with GPS validation
-- **Automated quality testing** with pass/fail logic
-- **Consumer verification** via QR codes and SMS gateway
-- **Comprehensive analytics** and compliance reporting
-
-## 🚀 Quick Start
+Herb AbhiLekh is a Decentralized ledger and logging system which bridges the gap between having a lalrge supply chain and a regulated supply chain. 
+The disconnect between the thousands of different hospitals, dispensaries, manufacturers, and source of  supply chain , the herb-collectors/farmers.
+A farmer who is the source of the ingredients for our product creation is soo far removed from the consumers, consumers have no idea about "autenticity", 
+"truthfulness" and "company - integraty" of the product. 
 
 
-API available at: `http://localhost:3000`
+Adultration and greed is the root of a compromised supply chain which our product aims to rewrite in the eyes of public the nature of ayurveda production.
 
-## 🔑 Demo Credentials
-- **Username**: `demo`
-- **Password**: `demo123`
-- **Role**: Super Administrator
 
-## 📡 API Endpoints
 
+We have used Hyperledger fabric blockchain architecture to create a permissed ledger. Using smart-contracts as a validation method to keep a barrier for 
+malicious intents and purposes. 
+
+
+
+We have used the fabric-samples directory given by official hyperledger fabric to setup the network and used the Chaincode to create a chain-of-proof events of herb transport and processing.
+
+
+
+
+
+## Tech stack
+
+    - Hyperledger Fabric blockchain (Node SDK JavaScript)
+    - Node.js
+    - Next.js
+    - React
+    - TypeScript
+    - Android Studio
+    
+# Steps to setup project
+
+## Download fabric binarys and fabric sample repo
+
+    $ ./install-fabric.sh 
+
+## To test network 
+    $ docker ps    // to check running container or check in docker desktop
+    
+    $ cd fabric-samples/test-network // contians the neccesary files, scripts and certificates to setup faric netowork
+    $ ./network.sh down     // to down network
+
+## to run network and deploy chaincode
+
+    From the root directory
+    
+    $ ./HerbAbhilekh.sh
+ 
+ 
+
+### API List
+ 
 ### Authentication
+
+- `POST /api/auth/register` - User registration
 - `POST /api/auth/login` - User login
 - `GET /api/auth/me` - Get user profile
-- `POST /api/auth/logout` - User logout
+- [x] `POST /api/auth/logout` - User logout
 
 ### Core Operations
 - `POST /api/protected/collection-events` - Create collection event
@@ -36,45 +70,61 @@ API available at: `http://localhost:3000`
 - `POST /api/protected/product-batches` - Create product batch
 - `GET /api/protected/product-batches` - List product batches
 
-### Analytics & Verification
-- `GET /api/protected/analytics` - Dashboard analytics
-- `POST /api/sms-webhook` - SMS verification
-- `GET /api/protected/traceability/:batchId` - Full traceability chain
+
+- `GET /api/public/qr/:qrCode` - QR code lookup (public)
+
+
+### Api responses 
+
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "username": "farmer_john",
+  "password": "secure123"
+}
+
+Response:
+{
+  "success": true,
+  "user": { "id": "...", "username": "farmer_john", "role": "collector" },
+  "token": "jwt_token_here",
+  "permissions": [...]
+}
+
+etc.....
+
+## chaincode logic
+
+    - lets first understand the actors in our chaincode
+
+    1. Goverment - network owner
+    2. Hospital - Network orgination 
+    3. Practicing physician / Doctor - member of hospital
+    4. Diagnostics center - org OR peer of hospital
+    5. Pharmacies - Org OR peer of hospital
+    6. Researchers / R&D - org
+    7. Insurance companies - org
+    8. Patient - end user
+
+
+   ## now lets see there read write access
+
+        1. Goverment - network owner - admin access
+        2. Hospital - Network orgination - Read/Write (doctor data)
+        3. Practicing physician/Doctor - Read/Write (Patient data w.r.t to hospital)
+        4. Diagnostics center - Read/Write (Patient records w.r.t to diagnostics center)
+        5. Pharmacies - Read/Write (Patient prescriptions w.r.t to pharma center)
+        6. Researchers / R&D - Read data of hospital conect, pateint based on consent. 
+        7. Insurance companies - Read/Write (Patient claims)
+        8. Patient - Read/Write (All generated patient data)
 
 
 
+### Environment Variables 
+  
+  Create a `.env` file based on `env.example`:
 
-## 🏗️ Architecture
-
-- **Express.js** API server with validation layer
-- **Role-based access control** (RBAC) with 12 user roles
-- **Blockchain integration** (Hyperledger Fabric + mock mode)
-- **Comprehensive validation** and error handling
-- **RESTful API** design with OpenAPI documentation
-
-## 🔗 Blockchain Features
-
-
-### Smart Contract Functions
-- ✅ `RecordCollectionEvent` - Geo-tagged herb collection
-- ✅ `RecordQualityTest` - Laboratory quality testing with pass/fail logic
-- ✅ `RecordProcessingStep` - Processing and handling steps
-- ✅ `CreateProductBatch` - Product batch creation with QR codes
-- ✅ `GetFullTraceability` - Complete supply chain traceability
-- ✅ `QueryCollectionsBySpecies` - Species-based queries with date ranges
-- ✅ `QueryQualityTestsByLab` - Lab-specific quality test queries
-
-### Real Certificates and Ledger
-When running in production mode (`MOCK_BLOCKCHAIN=false`):
-- ✅ **Real X.509 certificates** for identity management
-- ✅ **Persistent ledger** stored on Hyperledger Fabric network
-- ✅ **Immutable transactions** with cryptographic proof
-- ✅ **Multi-peer consensus** for transaction validation
-- ✅ **Certificate Authority (CA)** integration for user enrollment
-
-## 📋 Environment Variables
-
-Create a `.env` file based on `env.example`:
 
 ```bash
 
@@ -106,44 +156,6 @@ LOG_LEVEL=info
 LOG_FILE=logs/app.log
 ```
 
-## 🎯 Key Features
-
-### 1. **Complete Traceability Chain**
-- Farm collection with GPS coordinates
-- Processing steps (cleaning, drying, grinding)
-- Quality testing with automated pass/fail
-- Product batch creation with QR codes
-- Consumer verification
-
-### 2. **Multi-Role Access Control**
-- **Farmers**: Record collection events
-- **Processors**: Record processing steps
-- **Lab Technicians**: Record quality tests
-- **Manufacturers**: Create product batches
-- **Consumers**: Verify products via QR codes
-- **Regulators**: Access compliance reports
-
-### 3. **Consumer-Facing Features**
-- QR code generation for each batch
-- SMS verification for rural areas
-- Web portal for product verification
-- Interactive traceability maps
-
-### 4. **Analytics & Reporting**
-- Dashboard with key metrics
-- Compliance reporting
-- CSV data export
-- Real-time activity monitoring
-
-## 📖 Documentation
-
-- **OpenAPI Spec**: `/api/openapi.json`
-- **Health Check**: `/health`
-- **API Config**: `/api/config`
-
-## 🎯 Ready for Frontend Development
-
-This API is production-ready for:
-- **React/TypeScript** web dashboard
-- **Kotlin** mobile application
-- **Third-party integrations**
+  
+  
+  

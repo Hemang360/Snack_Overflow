@@ -1,8 +1,3 @@
-/*
- * SPDX-License-Identifier: Apache-2.0
- * Herb Traceability Chaincode for Ayurvedic Supply Chain
- */
-
 'use strict';
 
 const stringify = require('json-stringify-deterministic');
@@ -10,13 +5,11 @@ const sortKeysRecursive = require('sort-keys-recursive');
 const { Contract } = require('fabric-contract-api');
 const crypto = require('crypto');
 
-class HerbTraceabilityChaincode extends Contract {
-
-    // Initialize the ledger with approved harvest zones and species data
+class HerbTraceabilityChaincode extends
     async initLedger(ctx) {
-        console.info('============= START : Initialize Ledger ===========');
+        //console.info('============= START : Initialize Ledger ===========');
         
-        // Define approved harvest zones for different species
+        // Define approved harvest zones for different species // chatgpt, idk if tis needed .
         const approvedZones = [
             {
                 zoneId: 'ZONE001',
@@ -104,7 +97,7 @@ class HerbTraceabilityChaincode extends Contract {
         return `${prefix}_${timestamp}_${random}`;
     }
 
-    // Validate GPS coordinates are within approved zones
+    // Validate GPS coordinates are within approved zones | idt this even works
     async validateHarvestLocation(ctx, gpsCoordinates, speciesCode) {
         // Get all approved zones
         const iterator = await ctx.stub.getStateByRange('ZONE_', 'ZONE_~');
@@ -120,7 +113,8 @@ class HerbTraceabilityChaincode extends Contract {
         }
         await iterator.close();
 
-        // Check if coordinates are within any approved zone
+        // Check if coordinates are within any approved zone | hmm wont chaincdeo become too big
+        //
         for (const zone of zones) {
             if (this.isPointInPolygon(gpsCoordinates, zone.polygon)) {
                 return { valid: true, zoneId: zone.zoneId, zoneName: zone.name };
@@ -258,7 +252,7 @@ class HerbTraceabilityChaincode extends Contract {
         const eventId = this.generateId('COLLECT');
         const timestamp = new Date().toISOString();
 
-        // Build CollectionEvent resource (FHIR-inspired) with Ayurveda extensions and legacy summary fields
+        // Build CollectionEvent resource (FHIR-inspired) with Ayurveda extensions and legacy summary fields  | there are more fields in FHIR than names on epstein list, what was wrong with them
         const procedure = {
             resourceType: 'CollectionEvent',
             id: eventId,

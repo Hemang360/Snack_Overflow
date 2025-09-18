@@ -17,7 +17,7 @@ const registerCollector = async (cooperativeId, collectorId, collectorData) => {
     const ccp = JSON.parse(fs.readFileSync(ccpPath, 'utf8'));
     const orgMSP = ccp.organizations[orgID].mspid;
 
-    // Create a new CA client for interacting with the CA.
+    // Create a new CA client for interacting with the CA | always causes issues. piece of shit certificate .
     const caOrg = ccp.organizations[orgID].certificateAuthorities[0]
     const caURL = ccp.certificateAuthorities[caOrg].url;
     const ca = new FabricCAServices(caURL);
