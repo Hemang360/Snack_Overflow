@@ -1,3 +1,4 @@
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -25,8 +26,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.snackoverflow.Ayurveda.R
+import io.ktor.http.isSuccess
+import kotlinx.coroutines.launch
 
-// Font and Theme definitions remain the same...
+// Font and Theme definitions are unchanged...
 val KalniaFontFamily = FontFamily(
     Font(R.font.kalnia_thin, FontWeight.Thin),
     Font(R.font.kalnia_extralight, FontWeight.ExtraLight),
@@ -96,10 +99,12 @@ fun LoginScreenTheme(
 
 @Composable
 fun LoginScreen() {
-    // State holders for username, password, and password visibility
+    // State holders
     var username by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var isPasswordVisible by rememberSaveable { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -108,7 +113,7 @@ fun LoginScreen() {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState()) // Makes the column scrollable
+                .verticalScroll(rememberScrollState())
         ) {
             // Top decorative image
             Image(
@@ -146,7 +151,8 @@ fun LoginScreen() {
                     label = { Text("Username") },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                    singleLine = true
+                    singleLine = true,
+                    enabled = !isLoading // Disable when loading
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -163,22 +169,52 @@ fun LoginScreen() {
                         IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
                             Icon(
                                 imageVector = Icons.Filled.Lock,
-                                contentDescription = if (isPasswordVisible) "Hide password" else "Show password",
-                                tint = if (isPasswordVisible) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                                contentDescription = if (isPasswordVisible) "Hide password" else "Show password"
                             )
                         }
-                    }
+                    },
+                    enabled = !isLoading // Disable when loading
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Login button
                 Button(
-                    onClick = { /* TODO: Handle username/password login */ },
+                    onClick = {
+                        isLoading = true
+                        coroutineScope.launch {
+                            try {
+                                val loginRequest = LoginRequest(username, password)
+                                val response = AuthService.loginUser(loginRequest)
+
+                                if (response.status.isSuccess()) {
+                                    Log.d("LoginScreen", "Login successful!")
+                                    // TODO: Navigate to home screen or save auth token
+                                } else {
+                                    Log.e("LoginScreen", "Login failed with status: ${response.status}")
+                                    // TODO: Show a Snackbar or Toast with an error message
+                                }
+                            } catch (e: Exception) {
+                                Log.e("LoginScreen", "An error occurred during login", e)
+                                // TODO: Show an error for network issues
+                            } finally {
+                                isLoading = false // Ensure loading is stopped
+                            }
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(8.dp),
+                    enabled = !isLoading // Disable button while loading
                 ) {
-                    Text(text = "LOGIN", modifier = Modifier.padding(vertical = 8.dp))
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(text = "LOGIN", modifier = Modifier.padding(vertical = 8.dp))
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
