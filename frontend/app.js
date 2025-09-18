@@ -1,13 +1,23 @@
 // Herb Abhilekh Blockchain Frontend Application
 class HerbAbhilekhApp {
     constructor() {
-        this.apiBase = 'http://localhost:5000';
+        this.apiBase = window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://unenlightening-lisha-unsurveyable.ngrok-free.app';
         this.currentUser = null;
         this.currentToken = null;
         this.currentRole = null;
         
+        // Load saved authentication state on initialization
+        this.loadAuthState();
         this.initializeEventListeners();
         this.checkHealth();
+        
+        // Check if user is already logged in and show appropriate section
+        if (this.currentToken && this.currentUser) {
+            this.validateTokenAndShowDashboard();
+        }
+        
+        // Set up periodic token validation (every 30 minutes)
+        this.setupTokenRefresh();
     }
 
     initializeEventListeners() {
@@ -29,6 +39,136 @@ class HerbAbhilekhApp {
                 this.verifyQR();
             }
         });
+    }
+
+    // Authentication state persistence methods
+    saveAuthState() {
+        try {
+            const authState = {
+                user: this.currentUser,
+                token: this.currentToken,
+                role: this.currentRole,
+                timestamp: Date.now()
+            };
+            localStorage.setItem('herbAbhilekhAuth', JSON.stringify(authState));
+        } catch (error) {
+            console.error('Failed to save auth state:', error);
+        }
+    }
+
+    loadAuthState() {
+        try {
+            const authStateStr = localStorage.getItem('herbAbhilekhAuth');
+            if (!authStateStr) return;
+
+            const authState = JSON.parse(authStateStr);
+            
+            // Check if the stored auth is not too old (24 hours)
+            const maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+            if (Date.now() - authState.timestamp > maxAge) {
+                this.clearAuthState();
+                return;
+            }
+
+            this.currentUser = authState.user;
+            this.currentToken = authState.token;
+            this.currentRole = authState.role;
+
+            // Update UI to reflect logged-in state
+            if (this.currentUser) {
+                document.getElementById('currentUser').textContent = this.currentUser.username;
+            }
+        } catch (error) {
+            console.error('Failed to load auth state:', error);
+            this.clearAuthState();
+        }
+    }
+
+    clearAuthState() {
+        try {
+            localStorage.removeItem('herbAbhilekhAuth');
+        } catch (error) {
+            console.error('Failed to clear auth state:', error);
+        }
+        this.currentUser = null;
+        this.currentToken = null;
+        this.currentRole = null;
+        
+        // Clear token refresh interval if it exists
+        if (this.tokenRefreshInterval) {
+            clearInterval(this.tokenRefreshInterval);
+            this.tokenRefreshInterval = null;
+        }
+    }
+
+    setupTokenRefresh() {
+        // Clear any existing interval
+        if (this.tokenRefreshInterval) {
+            clearInterval(this.tokenRefreshInterval);
+        }
+        
+        // Set up token validation every 30 minutes
+        this.tokenRefreshInterval = setInterval(() => {
+            if (this.currentToken) {
+                this.validateToken();
+            }
+        }, 30 * 60 * 1000); // 30 minutes
+    }
+
+    async validateToken() {
+        if (!this.currentToken) return;
+        
+        try {
+            const response = await fetch(`${this.apiBase}/api/auth/me`, {
+                headers: {
+                    'Authorization': `Bearer ${this.currentToken}`
+                }
+            });
+
+            if (!response.ok || response.status === 401 || response.status === 403) {
+                // Token is invalid, clear auth state
+                this.clearAuthState();
+                document.getElementById('currentUser').textContent = 'Guest';
+                this.hideAllSections();
+                document.getElementById('welcomeSection').classList.remove('hidden');
+                this.showAlert('Your session has expired. Please login again.', 'warning');
+            }
+        } catch (error) {
+            console.error('Token validation error:', error);
+        }
+    }
+
+    async validateTokenAndShowDashboard() {
+        try {
+            // Try to make an authenticated request to validate the token
+            const response = await fetch(`${this.apiBase}/api/auth/me`, {
+                headers: {
+                    'Authorization': `Bearer ${this.currentToken}`
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    // Token is valid, update user info and show dashboard
+                    this.currentUser = data.user;
+                    this.currentRole = data.user.role;
+                    this.saveAuthState(); // Update stored auth state
+                    this.showDashboard();
+                    return;
+                }
+            }
+            
+            // Token is invalid, clear auth state and show welcome
+            this.clearAuthState();
+            document.getElementById('currentUser').textContent = 'Guest';
+            this.showAlert('Your session has expired. Please login again.', 'warning');
+        } catch (error) {
+            // Error validating token, clear auth state
+            this.clearAuthState();
+            document.getElementById('currentUser').textContent = 'Guest';
+            console.error('Token validation error:', error);
+        }
     }
 
     async checkHealth() {
@@ -119,6 +259,12 @@ class HerbAbhilekhApp {
                 this.currentToken = data.token;
                 this.currentRole = data.user.role;
                 
+                // Save authentication state to localStorage
+                this.saveAuthState();
+                
+                // Start token refresh monitoring
+                this.setupTokenRefresh();
+                
                 document.getElementById('currentUser').textContent = data.user.username;
                 this.showAlert('Login successful!', 'success');
                 this.showDashboard();
@@ -190,9 +336,9 @@ class HerbAbhilekhApp {
     }
 
     logout() {
-        this.currentUser = null;
-        this.currentToken = null;
-        this.currentRole = null;
+        // Clear authentication state from localStorage
+        this.clearAuthState();
+        
         document.getElementById('currentUser').textContent = 'Guest';
         
         this.hideAllSections();
@@ -604,44 +750,85 @@ class HerbAbhilekhApp {
     displayQRResult(data) {
         const resultDiv = document.getElementById('qrResult');
         
-        const timelineHtml = data.traceability.timeline.map(event => `
+        // Handle the actual API response structure
+        if (!data.data) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-warning">
+                    <h6><i class="fas fa-exclamation-triangle"></i> Invalid QR Response</h6>
+                    <p>The QR code response doesn't contain the expected data structure.</p>
+                </div>
+            `;
+            return;
+        }
+
+        const herbData = data.data;
+        const collection = herbData.collection || {};
+        const supplyChainSteps = herbData.supplyChainSteps || [];
+        const qualityTests = herbData.qualityTests || [];
+
+        // Build timeline from supply chain steps
+        const timelineHtml = supplyChainSteps.map(step => `
             <div class="timeline-item">
-                <h6>${event.type.replace('_', ' ').toUpperCase()}</h6>
-                <p class="text-muted">${new Date(event.timestamp).toLocaleString()}</p>
-                <p>${event.description}</p>
-                ${event.location ? `<small class="text-info">📍 ${event.location}</small>` : ''}
+                <h6>${(step.step || 'Unknown Step').replace('_', ' ').toUpperCase()}</h6>
+                <p class="text-muted">${step.timestamp ? new Date(step.timestamp).toLocaleString() : 'No timestamp'}</p>
+                <p><strong>Actor:</strong> ${step.actorName || step.actor || 'Unknown'} (${step.role || 'Unknown role'})</p>
+                ${step.data ? `<p><strong>Details:</strong> ${JSON.stringify(step.data, null, 2)}</p>` : ''}
             </div>
-        `).join('');
+        `).join('') || '<p class="text-muted">No supply chain steps recorded.</p>';
+
+        // Handle location display safely
+        let locationText = 'Location not provided';
+        if (collection.location) {
+            if (collection.location.latitude !== undefined && collection.location.longitude !== undefined) {
+                locationText = `${collection.location.latitude}, ${collection.location.longitude}`;
+            }
+        }
 
         resultDiv.innerHTML = `
             <div class="card mt-3">
                 <div class="card-header">
-                    <h5><i class="fas fa-leaf"></i> ${data.product.herbName} - Product Traceability</h5>
+                    <h5><i class="fas fa-leaf"></i> ${collection.species || 'Unknown Species'} - Herb Traceability</h5>
                 </div>
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
-                            <h6>Product Details</h6>
-                            <p><strong>Species:</strong> ${data.product.speciesCode}</p>
-                            <p><strong>Quantity:</strong> ${data.product.quantity}</p>
-                            <p><strong>Status:</strong> <span class="badge bg-success">${data.product.status}</span></p>
+                            <h6>Collection Details</h6>
+                            <p><strong>QR Code:</strong> ${herbData.qrCode || 'N/A'}</p>
+                            ${collection.qrCodeImage ? `
+                                <p><strong>QR Image:</strong><br>
+                                    <img src="${this.apiBase}${collection.qrCodeImage}" alt="QR Code" style="max-width: 150px; border: 1px solid #ddd; border-radius: 5px; padding: 5px;">
+                                </p>
+                            ` : ''}
+                            <p><strong>Species:</strong> ${collection.species || 'Unknown'}</p>
+                            <p><strong>Quantity:</strong> ${collection.quantity || 'N/A'}</p>
+                            <p><strong>Status:</strong> <span class="badge bg-success">${herbData.status || 'Unknown'}</span></p>
+                            <p><strong>Collection Date:</strong> ${collection.collectionDate ? new Date(collection.collectionDate).toLocaleString() : 'N/A'}</p>
                         </div>
                         <div class="col-md-6">
-                            <h6>Farmer Information</h6>
-                            <p><strong>Name:</strong> ${data.traceability.farmer.name}</p>
-                            <p><strong>ID:</strong> ${data.traceability.farmer.farmerId}</p>
-                            <p><strong>Location:</strong> ${data.traceability.farmer.location.latitude}, ${data.traceability.farmer.location.longitude}</p>
+                            <h6>Collector Information</h6>
+                            <p><strong>Name:</strong> ${collection.collectorName || 'Unknown'}</p>
+                            <p><strong>ID:</strong> ${collection.id || 'N/A'}</p>
+                            <p><strong>Location:</strong> ${locationText}</p>
+                            ${collection.qualityNotes ? `<p><strong>Notes:</strong> ${collection.qualityNotes}</p>` : ''}
+                            ${collection.herbImage ? `<p><strong>Image:</strong> <img src="${collection.herbImage}" alt="Herb" style="max-width: 100px; border-radius: 5px;"></p>` : ''}
                         </div>
                     </div>
                     
-                    ${data.traceability.labTests.length > 0 ? `
+                    ${qualityTests.length > 0 ? `
                         <div class="mt-3">
-                            <h6>Laboratory Tests</h6>
-                            ${data.traceability.labTests.map(test => `
+                            <h6>Quality Tests</h6>
+                            ${qualityTests.map(test => `
                                 <div class="alert alert-info">
-                                    <strong>${test.testType}</strong> by ${test.labName}<br>
-                                    <small>${new Date(test.testDate).toLocaleString()}</small><br>
-                                    <strong>Results:</strong> ${JSON.stringify(test.results)}
+                                    <strong>Test ID:</strong> ${test.id || 'N/A'}<br>
+                                    <strong>Lab:</strong> ${test.labId || 'Unknown'}<br>
+                                    <strong>Date:</strong> ${test.testDate ? new Date(test.testDate).toLocaleString() : 'N/A'}<br>
+                                    ${test.moisture ? `<strong>Moisture:</strong> ${test.moisture}%<br>` : ''}
+                                    ${test.dnaBarcode ? `<strong>DNA Barcode:</strong> ${test.dnaBarcode}<br>` : ''}
+                                    ${test.pesticides ? `<strong>Pesticides:</strong> ${test.pesticides}<br>` : ''}
+                                    ${test.heavyMetals ? `<strong>Heavy Metals:</strong> ${test.heavyMetals}<br>` : ''}
+                                    ${test.microbiological ? `<strong>Microbiological:</strong> ${test.microbiological}<br>` : ''}
+                                    ${test.overallResult ? `<strong>Overall Result:</strong> <span class="badge ${test.overallResult === 'approved' ? 'bg-success' : test.overallResult === 'rejected' ? 'bg-danger' : 'bg-warning'}">${test.overallResult.toUpperCase()}</span><br>` : ''}
+                                    ${test.notes ? `<strong>Notes:</strong> ${test.notes}` : ''}
                                 </div>
                             `).join('')}
                         </div>
@@ -652,6 +839,13 @@ class HerbAbhilekhApp {
                         <div class="timeline">
                             ${timelineHtml}
                         </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <i class="fas fa-clock"></i> Verified at: ${herbData.verifiedAt ? new Date(herbData.verifiedAt).toLocaleString() : 'Unknown'}
+                            ${herbData.lastUpdated ? ` | Last updated: ${new Date(herbData.lastUpdated).toLocaleString()}` : ''}
+                        </small>
                     </div>
                 </div>
             </div>
@@ -664,8 +858,14 @@ class HerbAbhilekhApp {
         const formData = new FormData();
         formData.append('species', document.getElementById('species').value);
         formData.append('collectorId', this.currentUser.username);
-        formData.append('gpsCoordinates.latitude', parseFloat(document.getElementById('latitude').value) || 0);
-        formData.append('gpsCoordinates.longitude', parseFloat(document.getElementById('longitude').value) || 0);
+        
+        // Create GPS coordinates object and append as JSON string
+        const gpsCoordinates = {
+            latitude: parseFloat(document.getElementById('latitude').value) || 0,
+            longitude: parseFloat(document.getElementById('longitude').value) || 0
+        };
+        formData.append('gpsCoordinates', JSON.stringify(gpsCoordinates));
+        
         formData.append('quantity', document.getElementById('quantity').value);
         formData.append('collectionDate', document.getElementById('collectionDate').value);
         formData.append('qualityNotes', document.getElementById('qualityNotes').value);
@@ -800,15 +1000,44 @@ class HerbAbhilekhApp {
             return;
         }
 
-        const html = collections.map(collection => `
-            <div class="alert alert-light">
-                <h6>${collection.species}</h6>
-                <p><strong>Quantity:</strong> ${collection.quantity}</p>
-                <p><strong>Date:</strong> ${new Date(collection.collectionDate).toLocaleString()}</p>
-                <p><strong>Location:</strong> ${collection.gpsCoordinates.latitude}, ${collection.gpsCoordinates.longitude}</p>
-                <small class="text-muted">ID: ${collection.id}</small>
-            </div>
-        `).join('');
+        const html = collections.map(collection => {
+            // Handle missing or undefined GPS coordinates
+            let locationText = 'Location not provided';
+            if (collection.gpsCoordinates && 
+                collection.gpsCoordinates.latitude !== undefined && 
+                collection.gpsCoordinates.longitude !== undefined) {
+                locationText = `${collection.gpsCoordinates.latitude}, ${collection.gpsCoordinates.longitude}`;
+            } else if (collection.location && 
+                       collection.location.latitude !== undefined && 
+                       collection.location.longitude !== undefined) {
+                locationText = `${collection.location.latitude}, ${collection.location.longitude}`;
+            }
+
+            return `
+                <div class="alert alert-light">
+                    <h6>${collection.species || 'Unknown Species'}</h6>
+                    <p><strong>Quantity:</strong> ${collection.quantity || 'N/A'}</p>
+                    <p><strong>Date:</strong> ${collection.collectionDate ? new Date(collection.collectionDate).toLocaleString() : 'N/A'}</p>
+                    <p><strong>Location:</strong> ${locationText}</p>
+                    ${collection.qrCode ? `
+                        <p><strong>QR Code:</strong> ${collection.qrCode}</p>
+                        ${collection.qrCodeImage ? `
+                            <p><strong>QR Image:</strong><br>
+                                <img src="${this.apiBase}${collection.qrCodeImage}" alt="QR Code" style="max-width: 150px; border: 1px solid #ddd; border-radius: 5px; padding: 5px;">
+                                <br><small class="text-muted">
+                                    <a href="${this.apiBase}${collection.qrCodeImage}" target="_blank" class="btn btn-sm btn-outline-primary mt-1">
+                                        <i class="fas fa-download"></i> Download QR
+                                    </a>
+                                </small>
+                            </p>
+                        ` : '<p><small class="text-muted">QR code image not available</small></p>'}
+                    ` : ''}
+                    ${collection.status ? `<p><strong>Status:</strong> <span class="badge bg-success">${collection.status}</span></p>` : ''}
+                    ${collection.qualityNotes ? `<p><strong>Notes:</strong> ${collection.qualityNotes}</p>` : ''}
+                    <small class="text-muted">ID: ${collection.id}</small>
+                </div>
+            `;
+        }).join('');
 
         container.innerHTML = html;
     }
@@ -852,6 +1081,21 @@ class HerbAbhilekhApp {
         }
 
         const response = await fetch(`${this.apiBase}${endpoint}`, options);
+        
+        // Check if the response indicates token expiration
+        if (response.status === 401 || response.status === 403) {
+            const errorData = await response.json();
+            if (errorData.error && (errorData.error.includes('expired') || errorData.error.includes('invalid'))) {
+                // Token has expired or is invalid
+                this.clearAuthState();
+                document.getElementById('currentUser').textContent = 'Guest';
+                this.hideAllSections();
+                document.getElementById('welcomeSection').classList.remove('hidden');
+                this.showAlert('Your session has expired. Please login again.', 'warning');
+                throw new Error('Authentication expired');
+            }
+        }
+        
         return await response.json();
     }
 
