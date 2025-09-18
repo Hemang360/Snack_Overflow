@@ -26,6 +26,7 @@ import {
   AlertCircle,
 } from "lucide-react"
 import Link from "next/link"
+import { apiFetch } from "@/lib/api"
 
 interface HerbCollection {
   id: string
@@ -80,6 +81,9 @@ export default function FarmerDashboard() {
     },
   ])
 
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
   const getCurrentLocation = () => {
     setIsCollecting(true)
     if (navigator.geolocation) {
@@ -99,10 +103,42 @@ export default function FarmerDashboard() {
     }
   }
 
-  const handleSubmitCollection = (e: React.FormEvent) => {
+  const handleSubmitCollection = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    // Handle form submission
-    console.log("Collection submitted")
+    setSubmitting(true)
+    setSubmitError(null)
+
+    const form = e.currentTarget
+    const formData = new FormData(form)
+
+    // Map UI fields to backend expected payload
+    const herbbatchId = `HB-${Date.now()}`
+    const name = String(formData.get("herbName") || "")
+    const quantity = Number(formData.get("quantity") || 0)
+    const dob = String(formData.get("collectionDate") || "")
+    const city = String(formData.get("address") || "Unknown")
+
+    try {
+      // Temporary collectorId from input (in real app, from auth/session)
+      const collectorId = String(formData.get("collectorId") || "collector1")
+
+      const res = await apiFetch<{ success: boolean; message?: string }>("/registerHerbbatch", {
+        method: "POST",
+        body: JSON.stringify({ collectorId, herbbatchId, name, dob, city, quantity }),
+      })
+
+      if ((res as any).success === false) {
+        throw new Error((res as any).message || "Failed to create collection")
+      }
+
+      form.reset()
+      setActiveTab("history")
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Submission error"
+      setSubmitError(msg)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -266,56 +302,29 @@ export default function FarmerDashboard() {
                 <form onSubmit={handleSubmitCollection} className="space-y-6">
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <Label htmlFor="herbName">Herb Name</Label>
-                      <Select required>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select herb type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="ashwagandha">Ashwagandha</SelectItem>
-                          <SelectItem value="turmeric">Turmeric</SelectItem>
-                          <SelectItem value="neem">Neem</SelectItem>
-                          <SelectItem value="tulsi">Tulsi</SelectItem>
-                          <SelectItem value="brahmi">Brahmi</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="collectorId">Collector ID</Label>
+                      <Input id="collectorId" name="collectorId" placeholder="Enter your collector ID" required />
                     </div>
-
                     <div className="space-y-2">
-                      <Label htmlFor="collectionDate">Collection Date</Label>
-                      <Input id="collectionDate" type="date" required />
+                      <Label htmlFor="herbName">Herb Name</Label>
+                      <Input id="herbName" name="herbName" placeholder="e.g., Ashwagandha" required />
                     </div>
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <Label htmlFor="quantity">Quantity</Label>
-                      <Input id="quantity" type="number" placeholder="Enter quantity" required />
+                      <Label htmlFor="collectionDate">Collection Date</Label>
+                      <Input id="collectionDate" name="collectionDate" type="date" required />
                     </div>
-
                     <div className="space-y-2">
-                      <Label htmlFor="unit">Unit</Label>
-                      <Select required>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select unit" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="kg">Kilograms (kg)</SelectItem>
-                          <SelectItem value="g">Grams (g)</SelectItem>
-                          <SelectItem value="bundles">Bundles</SelectItem>
-                          <SelectItem value="pieces">Pieces</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="quantity">Quantity</Label>
+                      <Input id="quantity" name="quantity" type="number" placeholder="Enter quantity" required />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea
-                      id="description"
-                      placeholder="Additional notes about the collection (quality, conditions, etc.)"
-                      rows={3}
-                    />
+                    <Label htmlFor="address">Location / Address</Label>
+                    <Input id="address" name="address" placeholder="Village, District" />
                   </div>
 
                   <div className="space-y-4">
@@ -333,6 +342,16 @@ export default function FarmerDashboard() {
                     </div>
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Description</Label>
+                    <Textarea
+                      id="description"
+                      name="description"
+                      placeholder="Additional notes about the collection (quality, conditions, etc.)"
+                      rows={3}
+                    />
+                  </div>
+
                   <div className="space-y-4">
                     <Label>Upload Images</Label>
                     <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
@@ -345,10 +364,12 @@ export default function FarmerDashboard() {
                     </div>
                   </div>
 
+                  {submitError && <div className="text-sm text-destructive">{submitError}</div>}
+
                   <div className="flex gap-4">
-                    <Button type="submit" className="flex-1">
+                    <Button type="submit" className="flex-1" disabled={submitting}>
                       <Plus className="h-4 w-4 mr-2" />
-                      Record Collection
+                      {submitting ? "Recording..." : "Record Collection"}
                     </Button>
                     <Button type="button" variant="outline">
                       <QrCode className="h-4 w-4 mr-2" />

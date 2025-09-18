@@ -21,6 +21,134 @@ app.get('/status', async function (req, res, next) {
     res.send("Server is up.");
 });
 
+// FHIR helpers (minimal mapping for Ayurveda-focused collection + tests)
+function getRefId(ref) {
+    if (!ref || typeof ref !== 'string') return null;
+    const parts = ref.split('/');
+    return parts[parts.length - 1] || null;
+}
+
+function extractAyurvedaExtensions(extensions) {
+    if (!Array.isArray(extensions)) return {};
+    const out = {};
+    for (const ext of extensions) {
+        if (!ext || !ext.url) continue;
+        const url = String(ext.url);
+        if (url.includes('speciesCode') && typeof ext.valueString === 'string') out.speciesCode = ext.valueString;
+        if (url.includes('harvestZoneId') && typeof ext.valueString === 'string') out.harvestZone = ext.valueString;
+        if (url.includes('harvestZoneName') && typeof ext.valueString === 'string') out.harvestZoneName = ext.valueString;
+        if (url.includes('wildcrafted') && typeof ext.valueBoolean === 'boolean') out.wildcrafted = ext.valueBoolean;
+        if (url.includes('organicCertified') && typeof ext.valueBoolean === 'boolean') out.organicCertified = ext.valueBoolean;
+        if (url.includes('gpsLatitude') && typeof ext.valueDecimal === 'number') {
+            out.gpsCoordinates = out.gpsCoordinates || {};
+            out.gpsCoordinates.latitude = ext.valueDecimal;
+        }
+        if (url.includes('gpsLongitude') && typeof ext.valueDecimal === 'number') {
+            out.gpsCoordinates = out.gpsCoordinates || {};
+            out.gpsCoordinates.longitude = ext.valueDecimal;
+        }
+        if (url.includes('harvestMethod') && typeof ext.valueString === 'string') out.harvestMethod = ext.valueString;
+        if (url.includes('weatherConditions') && typeof ext.valueString === 'string') out.weatherConditions = ext.valueString;
+        if (url.includes('soilConditions') && typeof ext.valueString === 'string') out.soilConditions = ext.valueString;
+        if (url.includes('plantAge') && (typeof ext.valueInteger === 'number' || typeof ext.valueDecimal === 'number')) out.plantAge = ext.valueInteger ?? ext.valueDecimal;
+    }
+    return out;
+}
+
+function mapFhirCollectionToChaincode(procResource, qtyObservation) {
+    if (!procResource || (procResource.resourceType !== 'CollectionEvent' && procResource.resourceType !== 'Procedure')) {
+        throw new Error('Invalid CollectionEvent resource');
+    }
+    const ext = extractAyurvedaExtensions(procResource.extension);
+    const herbSpecies = (procResource.code && (procResource.code.text || (Array.isArray(procResource.code.coding) && procResource.code.coding[0] && procResource.code.coding[0].display))) || 'Unknown';
+    const collectorId = getRefId(procResource.subject && procResource.subject.reference) || getRefId(procResource.performer && procResource.performer[0] && procResource.performer[0].actor && procResource.performer[0].actor.reference);
+    const quantity = qtyObservation && qtyObservation.valueQuantity && typeof qtyObservation.valueQuantity.value === 'number' ? qtyObservation.valueQuantity.value : undefined;
+    const unit = qtyObservation && qtyObservation.valueQuantity && (qtyObservation.valueQuantity.code || qtyObservation.valueQuantity.unit) || undefined;
+
+    return {
+        herbSpecies,
+        speciesCode: ext.speciesCode,
+        quantity,
+        unit,
+        gpsCoordinates: ext.gpsCoordinates,
+        harvestMethod: ext.harvestMethod,
+        weatherConditions: ext.weatherConditions,
+        soilConditions: ext.soilConditions,
+        plantAge: ext.plantAge,
+        wildcrafted: ext.wildcrafted,
+        organicCertified: ext.organicCertified,
+        images: []
+    };
+}
+
+// FHIR-aligned endpoints for protected API
+app.post('/api/protected/collection-events', async function (req, res, next) {
+    try {
+        const { procedure, observation, userId } = req.body;
+
+        // Accept either a wrapped object or a direct CollectionEvent in body
+        const procRes = (procedure && (procedure.resourceType === 'CollectionEvent' || procedure.resourceType === 'Procedure')) ? procedure : ((req.body.resourceType === 'CollectionEvent' || req.body.resourceType === 'Procedure') ? req.body : null);
+        const qtyObs = observation && observation.resourceType === 'Observation' ? observation : (Array.isArray(req.body.contained) ? req.body.contained.find(r => r.resourceType === 'Observation') : null);
+
+        if (!procRes) {
+            return res.status(400).json({ success: false, message: 'Expected CollectionEvent in body (or body.procedure)' });
+        }
+
+        const mapped = mapFhirCollectionToChaincode(procRes, qtyObs);
+        if (!userId) {
+            return res.status(400).json({ success: false, message: 'Missing userId for transaction submitter' });
+        }
+        const result = await invoke.invokeTransaction('createCollectionEvent', mapped, userId);
+        return res.status(200).json({ success: true, data: result });
+    } catch (err) {
+        next(err);
+    }
+});
+
+app.get('/api/protected/collection-events', async function (req, res, next) {
+    try {
+        const { userId, collectorId } = req.query;
+        if (!userId) {
+            return res.status(400).json({ success: false, message: 'Missing userId' });
+        }
+        const cid = String(collectorId || '');
+        const result = await query.getQuery('getCollectorHarvests', { collectorId: cid }, String(userId));
+        return res.status(200).json({ success: true, collectionEvents: Array.isArray(result) ? result : [] });
+    } catch (err) {
+        next(err);
+    }
+});
+
+app.post('/api/protected/quality-tests', async function (req, res, next) {
+    try {
+        const { diagnosticReport, observations, userId } = req.body;
+        if (!diagnosticReport || diagnosticReport.resourceType !== 'DiagnosticReport') {
+            return res.status(400).json({ success: false, message: 'Expected FHIR DiagnosticReport in body.diagnosticReport' });
+        }
+        if (!userId) {
+            return res.status(400).json({ success: false, message: 'Missing userId' });
+        }
+
+        // Minimal mapping to chaincode addQualityTest
+        const dr = diagnosticReport;
+        const targetRef = (Array.isArray(dr.basedOn) && dr.basedOn[0] && dr.basedOn[0].reference) || (dr.subject && dr.subject.reference) || '';
+        const targetId = getRefId(targetRef) || dr.subjectId || dr.basedOnId || '';
+        const targetType = (targetRef && targetRef.startsWith('Procedure/')) ? 'collection' : 'batch';
+        const testType = (dr.code && (dr.code.text || (Array.isArray(dr.code.coding) && dr.code.coding[0] && dr.code.coding[0].code))) || 'unspecified';
+        const labName = (Array.isArray(dr.performer) && dr.performer[0] && dr.performer[0].display) || 'Unknown Lab';
+        const compliance = { ayushStandards: Array.isArray(dr.conclusionCode) && dr.conclusionCode.some(c => c.code === 'pass') };
+
+        const testParameters = Array.isArray(observations) ? observations.map(o => ({ code: o.code && (o.code.text || (o.code.coding && o.code.coding[0] && o.code.coding[0].code)), value: o.valueQuantity || o.valueString || o.valueCodeableConcept })) : [];
+        const results = testParameters;
+
+        const payload = { targetId, targetType, testType, labName, testParameters, results, certificates: [], compliance };
+        const result = await invoke.invokeTransaction('addQualityTest', payload, userId);
+        return res.status(200).json({ success: true, data: result });
+    } catch (err) {
+        next(err);
+    }
+});
+
 // Register collector with blockchain credentials
 app.post('/registerCollector', async function (req, res, next) {
     try {

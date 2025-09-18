@@ -12,38 +12,42 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Leaf, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { loginCollector } from "@/lib/api"
 
 export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [role, setRole] = useState("")
+  const [collectorId, setCollectorId] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError(null)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    // Redirect based on role
-    switch (role) {
-      case "farmer":
+    try {
+      // For now, wire only collector login which backend supports
+      if (role === "farmer" || role === "collector") {
+        const res = await loginCollector({ collectorId, password })
+        if (!res.success) throw new Error(res.message || "Login failed")
         router.push("/farmer")
-        break
-      case "laboratory":
+      } else if (role === "laboratory") {
         router.push("/laboratory")
-        break
-      case "admin":
+      } else if (role === "admin") {
         router.push("/admin")
-        break
-      case "consumer":
+      } else if (role === "consumer") {
         router.push("/consumer")
-        break
-      default:
+      } else {
         router.push("/")
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Login error"
+      setError(msg)
+    } finally {
+      setIsLoading(false)
     }
-
-    setIsLoading(false)
   }
 
   return (
@@ -93,15 +97,24 @@ export default function AuthPage() {
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" placeholder="Enter your email" required />
-                  </div>
+                  {(role === "farmer" || role === "collector") && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="collectorId">Collector ID</Label>
+                        <Input id="collectorId" value={collectorId} onChange={(e) => setCollectorId(e.target.value)} required />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="password">Password</Label>
+                        <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                      </div>
+                    </>
+                  )}
 
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input id="password" type="password" placeholder="Enter your password" required />
-                  </div>
+                  {error && (
+                    <div className="text-sm text-destructive" role="alert">
+                      {error}
+                    </div>
+                  )}
 
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? "Signing In..." : "Sign In"}

@@ -223,7 +223,7 @@ class HerbTraceabilityChaincode extends Contract {
         return collector;
     }
 
-    // Create herb collection event with GPS tracking
+    // Create herb collection event stored as FHIR Procedure (+ Observation), with legacy summary fields for compatibility
     async createCollectionEvent(ctx, eventData) {
         const { 
             herbSpecies, 
@@ -258,7 +258,37 @@ class HerbTraceabilityChaincode extends Contract {
         const eventId = this.generateId('COLLECT');
         const timestamp = new Date().toISOString();
 
-        const collectionEvent = {
+        // Build CollectionEvent resource (FHIR-inspired) with Ayurveda extensions and legacy summary fields
+        const procedure = {
+            resourceType: 'CollectionEvent',
+            id: eventId,
+            status: 'completed',
+            code: {
+                text: herbSpecies || 'Herb Collection'
+            },
+            subject: { reference: `RelatedPerson/${uuid}` },
+            performedDateTime: timestamp,
+            identifier: [
+                { system: 'urn:snack-overflow:collection', value: eventId }
+            ],
+            extension: [
+                { url: 'urn:ayurveda:speciesCode', valueString: speciesCode },
+                { url: 'urn:ayurveda:harvestZoneId', valueString: locationValidation.zoneId },
+                { url: 'urn:ayurveda:harvestZoneName', valueString: locationValidation.zoneName },
+                { url: 'urn:ayurveda:harvestMethod', valueString: harvestMethod || '' },
+                { url: 'urn:ayurveda:weatherConditions', valueString: weatherConditions || '' },
+                { url: 'urn:ayurveda:soilConditions', valueString: soilConditions || '' },
+                { url: 'urn:ayurveda:plantAge', valueInteger: typeof plantAge === 'number' ? plantAge : undefined },
+                { url: 'urn:ayurveda:wildcrafted', valueBoolean: wildcrafted || false },
+                { url: 'urn:ayurveda:organicCertified', valueBoolean: organicCertified || false },
+                { url: 'urn:geo:gpsLatitude', valueDecimal: gpsCoordinates && gpsCoordinates.latitude },
+                { url: 'urn:geo:gpsLongitude', valueDecimal: gpsCoordinates && gpsCoordinates.longitude }
+            ].filter(e => e.valueString !== undefined || e.valueBoolean !== undefined || e.valueInteger !== undefined || e.valueDecimal !== undefined),
+            performer: [
+                { actor: { reference: `RelatedPerson/${uuid}` }, role: { text: 'collector' } }
+            ],
+            note: images && images.length ? [{ text: `Images: ${images.length}` }] : undefined,
+            // Legacy summary fields for compatibility with existing queries/UI
             eventId,
             herbSpecies,
             speciesCode,
@@ -277,17 +307,32 @@ class HerbTraceabilityChaincode extends Contract {
             images: images || [],
             timestamp,
             blockchainTxId: ctx.stub.getTxID(),
-            status: 'collected',
+            statusLegacy: 'collected',
             currentCustodian: uuid,
-            custodyChain: [{
-                custodian: uuid,
-                timestamp,
-                action: 'collected'
-            }]
+            custodyChain: [{ custodian: uuid, timestamp, action: 'collected' }]
         };
 
-        // Store collection event
-        await ctx.stub.putState(`EVENT_${eventId}`, Buffer.from(stringify(collectionEvent)));
+        // Create a linked Observation for quantity
+        const quantityObservation = {
+            resourceType: 'Observation',
+            id: `OBS_${eventId}`,
+            status: 'final',
+            code: { text: 'Harvest Quantity' },
+            subject: { reference: `RelatedPerson/${uuid}` },
+            effectiveDateTime: timestamp,
+            partOf: [{ reference: `CollectionEvent/${eventId}` }],
+            valueQuantity: {
+                value: quantity,
+                unit: unit,
+                system: 'http://unitsofmeasure.org',
+                code: unit
+            }
+        };
+
+        // Store Procedure as the primary event
+        await ctx.stub.putState(`EVENT_${eventId}`, Buffer.from(stringify(procedure)));
+        // Store Observation separately
+        await ctx.stub.putState(`OBS_${eventId}`, Buffer.from(stringify(quantityObservation)));
 
         // Update collector's quota
         const quotaKey = `QUOTA_${speciesCode}_${uuid}_${new Date().getFullYear()}`;
@@ -308,7 +353,7 @@ class HerbTraceabilityChaincode extends Contract {
             location: gpsCoordinates
         })));
 
-        return collectionEvent;
+        return procedure;
     }
 
     // Transfer custody of herbs
@@ -726,16 +771,17 @@ class HerbTraceabilityChaincode extends Contract {
         while (!eventResult.done) {
             const event = JSON.parse(eventResult.value.value.toString('utf8'));
             analytics.totalCollectionEvents++;
-            
-            if (!analytics.totalQuantityBySpecies[event.speciesCode]) {
-                analytics.totalQuantityBySpecies[event.speciesCode] = 0;
+            const species = event.speciesCode;
+            const qty = typeof event.quantity === 'number' ? event.quantity : 0;
+            const zone = event.harvestZone;
+            if (species) {
+                if (!analytics.totalQuantityBySpecies[species]) analytics.totalQuantityBySpecies[species] = 0;
+                analytics.totalQuantityBySpecies[species] += qty;
             }
-            analytics.totalQuantityBySpecies[event.speciesCode] += event.quantity;
-            
-            if (!analytics.harvestsByZone[event.harvestZone]) {
-                analytics.harvestsByZone[event.harvestZone] = 0;
+            if (zone) {
+                if (!analytics.harvestsByZone[zone]) analytics.harvestsByZone[zone] = 0;
+                analytics.harvestsByZone[zone]++;
             }
-            analytics.harvestsByZone[event.harvestZone]++;
             
             eventResult = await eventIterator.next();
         }

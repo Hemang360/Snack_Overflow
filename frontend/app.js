@@ -854,43 +854,53 @@ class HerbAbhilekhApp {
 
 
     async createCollection() {
-        // Use FormData for file upload
-        const formData = new FormData();
-        formData.append('species', document.getElementById('species').value);
-        formData.append('collectorId', this.currentUser.username);
-        
-        // Create GPS coordinates object and append as JSON string
-        const gpsCoordinates = {
-            latitude: parseFloat(document.getElementById('latitude').value) || 0,
-            longitude: parseFloat(document.getElementById('longitude').value) || 0
+        // Build FHIR Procedure + Observation payload
+        const species = document.getElementById('species').value;
+        const latitude = parseFloat(document.getElementById('latitude').value) || 0;
+        const longitude = parseFloat(document.getElementById('longitude').value) || 0;
+        const quantity = parseFloat(document.getElementById('quantity').value);
+        const unitEl = document.getElementById('unit');
+        const unit = unitEl ? unitEl.value : 'kg';
+
+        const procedure = {
+            resourceType: 'CollectionEvent',
+            status: 'completed',
+            code: { text: species || 'Herb Collection' },
+            subject: { reference: `RelatedPerson/${this.currentUser.username}` },
+            performedDateTime: new Date().toISOString(),
+            extension: [
+                { url: 'urn:ayurveda:speciesCode', valueString: species },
+                { url: 'urn:geo:gpsLatitude', valueDecimal: latitude },
+                { url: 'urn:geo:gpsLongitude', valueDecimal: longitude }
+            ]
         };
-        formData.append('gpsCoordinates', JSON.stringify(gpsCoordinates));
-        
-        formData.append('quantity', document.getElementById('quantity').value);
-        formData.append('collectionDate', document.getElementById('collectionDate').value);
-        formData.append('qualityNotes', document.getElementById('qualityNotes').value);
-        
-        // Add herb image if present
-        const herbImageInput = document.getElementById('herbImage');
-        if (herbImageInput && herbImageInput.files[0]) {
-            formData.append('herbImage', herbImageInput.files[0]);
-        }
+
+        const observation = {
+            resourceType: 'Observation',
+            status: 'final',
+            code: { text: 'Harvest Quantity' },
+            subject: { reference: `RelatedPerson/${this.currentUser.username}` },
+            effectiveDateTime: new Date().toISOString(),
+            valueQuantity: {
+                value: quantity,
+                unit: unit,
+                system: 'http://unitsofmeasure.org',
+                code: unit
+            }
+        };
 
         try {
-            // Use fetch directly for FormData (not apiCall which always sends JSON)
             const response = await fetch(`${this.apiBase}/api/protected/collection-events`, {
                 method: 'POST',
                 headers: {
+                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${this.currentToken}`
-                    // Don't set Content-Type for FormData - browser will set it automatically
                 },
-                body: formData
+                body: JSON.stringify({ procedure, observation, userId: this.currentUser.username })
             });
-            
             const result = await response.json();
-            
             if (result.success) {
-                this.showAlert(`Collection created successfully! QR Code: ${result.qrCode}`, 'success');
+                this.showAlert(`Collection created successfully`, 'success');
                 document.getElementById('collectionForm').reset();
                 this.loadMyCollections();
             } else {
@@ -902,28 +912,47 @@ class HerbAbhilekhApp {
     }
 
     async createQualityTest() {
-        const formData = {
-            qrCode: document.getElementById('qrCode').value,
-            labId: this.currentUser.username,
-            testDate: document.getElementById('testDate').value,
-            moisture: parseFloat(document.getElementById('moisture').value) || null,
-            dnaBarcode: document.getElementById('dnaBarcode').value,
-            pesticides: document.getElementById('pesticides').value,
-            heavyMetals: document.getElementById('heavyMetals').value,
-            microbiological: document.getElementById('microbiological').value,
-            overallResult: document.getElementById('overallResult').value,
-            notes: document.getElementById('testNotes').value
+        const subjectId = document.getElementById('qrCode').value;
+        const testDate = document.getElementById('testDate').value;
+        const performer = this.currentUser.username;
+        const observations = [];
+        const moisture = document.getElementById('moisture').value;
+        if (moisture && !isNaN(parseFloat(moisture))) {
+            observations.push({
+                resourceType: 'Observation',
+                status: 'final',
+                code: { text: 'Moisture' },
+                effectiveDateTime: testDate || new Date().toISOString(),
+                valueQuantity: { value: parseFloat(moisture), unit: '%', system: 'http://unitsofmeasure.org', code: '%' }
+            });
+        }
+
+        const diagnosticReport = {
+            resourceType: 'DiagnosticReport',
+            status: 'final',
+            code: { text: 'Ayurveda Quality Panel' },
+            subject: subjectId ? { reference: `CollectionEvent/${subjectId}` } : undefined,
+            effectiveDateTime: testDate || new Date().toISOString(),
+            performer: [{ display: performer }],
+            conclusionCode: [{ code: (document.getElementById('overallResult').value || '').toLowerCase() === 'pass' ? 'pass' : 'fail' }]
         };
 
         try {
-            const response = await this.apiCall('/api/protected/quality-tests', 'POST', formData);
-            
-            if (response.success) {
+            const response = await fetch(`${this.apiBase}/api/protected/quality-tests`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.currentToken}`
+                },
+                body: JSON.stringify({ diagnosticReport, observations, userId: this.currentUser.username })
+            });
+            const result = await response.json();
+            if (result.success) {
                 this.showAlert('Quality test created successfully!', 'success');
                 document.getElementById('qualityTestForm').reset();
                 this.loadMyTests();
             } else {
-                this.showAlert(response.error || 'Failed to create quality test', 'danger');
+                this.showAlert(result.error || 'Failed to create quality test', 'danger');
             }
         } catch (error) {
             this.showAlert('Error creating quality test: ' + error.message, 'danger');
