@@ -1,3 +1,4 @@
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -12,7 +13,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -22,12 +22,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import com.snackoverflow.Ayurveda.AuthService
+import com.snackoverflow.Ayurveda.LoginRequest
 import com.snackoverflow.Ayurveda.R
+import com.snackoverflow.Ayurveda.ui.navigation.Screen
+import io.ktor.http.isSuccess
+import kotlinx.coroutines.launch
 
+// Font and Theme definitions are unchanged...
 val KalniaFontFamily = FontFamily(
     Font(R.font.kalnia_thin, FontWeight.Thin),
     Font(R.font.kalnia_extralight, FontWeight.ExtraLight),
@@ -96,12 +102,13 @@ fun LoginScreenTheme(
 }
 
 @Composable
-fun LoginScreen() {
-    var email by rememberSaveable { mutableStateOf("") }
+fun LoginScreen(navController: NavController) {
+    // State holders
+    var username by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var isPasswordVisible by rememberSaveable { mutableStateOf(false) }
-    var selectedRole by rememberSaveable { mutableStateOf<String?>(null) }
-    var uniqueId by rememberSaveable { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -112,6 +119,7 @@ fun LoginScreen() {
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
+            // Top decorative image
             Image(
                 painter = painterResource(id = R.drawable.login_backdrop_top),
                 contentDescription = "Login backdrop",
@@ -121,6 +129,7 @@ fun LoginScreen() {
                     .fillMaxHeight(0.3f)
             )
 
+            // Form content
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -139,17 +148,20 @@ fun LoginScreen() {
 
                 Spacer(modifier = Modifier.height(32.dp))
 
+                // Username input field
                 OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    label = { Text("Email Address") },
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("Username") },
                     modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    singleLine = true
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                    singleLine = true,
+                    enabled = !isLoading // Disable when loading
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Password input field
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
@@ -161,25 +173,57 @@ fun LoginScreen() {
                         IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
                             Icon(
                                 imageVector = Icons.Filled.Lock,
-                                contentDescription = if (isPasswordVisible) "Hide password" else "Show password",
-                                tint = if (isPasswordVisible) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                                contentDescription = if (isPasswordVisible) "Hide password" else "Show password"
                             )
                         }
-                    }
+                    },
+                    enabled = !isLoading // Disable when loading
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                // Login button
                 Button(
-                    onClick = { /* TODO: Handle email login */ },
+                    onClick = {
+                        isLoading = true
+                        coroutineScope.launch {
+                            try {
+                                val loginRequest = LoginRequest(username, password)
+                                val response = AuthService.loginUser(loginRequest)
+
+                                if (response.status.isSuccess()) {
+                                    Log.d("LoginScreen", "Login successful!")
+                                    navController.navigate(Screen.Dashboard.route)
+                                } else {
+                                    Log.e("LoginScreen", "Login failed with status: ${response.status}")
+                                    // TODO: Show a Snackbar or Toast with an error message
+                                }
+                            } catch (e: Exception) {
+                                Log.e("LoginScreen", "An error occurred during login", e)
+                                // TODO: Show an error for network issues
+                            } finally {
+                                isLoading = false // Ensure loading is stopped
+                            }
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(8.dp),
+                    enabled = !isLoading // Disable button while loading
                 ) {
-                    Text(text = "LOGIN", modifier = Modifier.padding(vertical = 8.dp))
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(text = "LOGIN", modifier = Modifier.padding(vertical = 8.dp))
+                    }
                 }
 
-                // SIGN UP OPTION ADDED HERE
                 Spacer(modifier = Modifier.height(16.dp))
+
+                // Sign up option
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center,
@@ -190,7 +234,9 @@ fun LoginScreen() {
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    TextButton(onClick = { /* TODO: Handle navigation to sign up screen */ }) {
+                    TextButton(onClick = {
+                        navController.navigate(route = Screen.Register.route)
+                    }) {
                         Text(
                             text = "Sign Up",
                             style = MaterialTheme.typography.bodyMedium,
@@ -199,72 +245,6 @@ fun LoginScreen() {
                         )
                     }
                 }
-                // END OF ADDED CODE
-
-                Spacer(modifier = Modifier.height(24.dp)) // Adjusted spacer for better balance
-
-                Text(
-                    text = "LOGIN AS",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                OutlinedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                ) {
-                    val roles = listOf("Viewer", "Farmer", "Lab Official", "Distributor")
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(IntrinsicSize.Min),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        roles.forEachIndexed { index, role ->
-                            val isSelected = (selectedRole == role)
-                            Button(
-                                onClick = {
-                                    selectedRole = role
-                                    if (role == "Viewer") {
-                                        uniqueId = ""
-                                    }
-                                },
-                                modifier = Modifier.weight(1f),
-                                shape = RectangleShape,
-                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                                    contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            ) {
-                                Text(
-                                    text = role,
-                                    fontSize = 12.sp,
-                                    textAlign = TextAlign.Center,
-                                    lineHeight = 16.sp
-                                )
-                            }
-
-                            if (index < roles.size - 1) {
-                                VerticalDivider()
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                OutlinedTextField(
-                    value = uniqueId,
-                    onValueChange = { uniqueId = it },
-                    label = { Text("Unique Authentication ID") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    enabled = selectedRole != "Viewer"
-                )
             }
         }
     }
@@ -274,6 +254,6 @@ fun LoginScreen() {
 @Composable
 fun LoginScreenPreview() {
     LoginScreenTheme {
-        LoginScreen()
+        //LoginScreen()
     }
 }
