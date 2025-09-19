@@ -4,7 +4,7 @@ import android.app.DatePickerDialog
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.provider.OpenableColumns // <-- ADDED IMPORT
+import android.provider.OpenableColumns
 import android.widget.DatePicker
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource // <-- ADDED IMPORT
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -32,7 +33,8 @@ import coil.compose.rememberAsyncImagePainter
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
-import com.snackoverflow.Ayurveda.ui.navigation.Screen // Make sure this path is correct
+import com.snackoverflow.Ayurveda.R // <-- ADDED IMPORT (Ensure this path is correct for your project)
+import com.snackoverflow.Ayurveda.ui.navigation.Screen
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
@@ -54,8 +56,6 @@ data class LocationData(
     val latitude: Double,
     val longitude: Double
 )
-
-// The UploadResponse data class has been removed as it's no longer needed.
 
 // --- Helper Function for Safe Location Access ---
 private fun requestCurrentLocation(
@@ -89,7 +89,7 @@ private fun createImageUri(context: Context): Uri {
     )
 }
 
-// --- NEW: Helper function to get file name from URI ---
+// --- Helper function to get file name from URI ---
 private fun getFileName(context: Context, uri: Uri): String? {
     var fileName: String? = null
     if (uri.scheme == "content") {
@@ -128,6 +128,7 @@ fun DataCollectionScreen(navController: NavController) {
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var showImageSourceDialog by remember { mutableStateOf(false) }
+    var showQrCodeDialog by remember { mutableStateOf(false) } // <-- NEW: State for QR dialog
 
     // --- Context and Scopes ---
     val context = LocalContext.current
@@ -240,6 +241,38 @@ fun DataCollectionScreen(navController: NavController) {
         )
     }
 
+    // --- NEW: Dialog to show QR Code on success ---
+    if (showQrCodeDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showQrCodeDialog = false
+                navController.popBackStack()
+            },
+            title = { Text("Submission Successful!") },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    // Make sure you have an image named 'qr.png' in your res/drawable folder
+                    Image(
+                        painter = painterResource(id = R.drawable.qr),
+                        contentDescription = "Collection Event QR Code"
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showQrCodeDialog = false
+                    navController.popBackStack()
+                }) {
+                    Text("Done")
+                }
+            }
+        )
+    }
+
 
     Scaffold(
         topBar = {
@@ -317,10 +350,8 @@ fun DataCollectionScreen(navController: NavController) {
                         scope.launch {
                             isLoading = true
                             try {
-                                // --- MODIFIED: Get the file name from the URI ---
                                 val imageFileName = getFileName(context, currentImageUri) ?: "unknown_image.jpg"
 
-                                // --- Submit the form data with the image file name ---
                                 val jwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFlMzM3MzNmLTQ3NWMtNDE4MS1iYmVhLThlOTVmMmE2MDE3YyIsInVzZXJuYW1lIjoieG9ueW5peCIsInJvbGUiOiJjb2xsZWN0b3IiLCJwZXJtaXNzaW9ucyI6WyJjcmVhdGU6Y29sbGVjdGlvbiIsInZpZXc6Y29sbGVjdGlvbiJdLCJpYXQiOjE3NTgxOTA1MjYsImV4cCI6MTc1ODI3NjkyNn0.1g1oiGEY16uTjghODAEdxk73cCc1NGsb7362Hv37LjA"
                                 val locationJsonString = Json.encodeToString(LocationData(latitude.toDouble(), longitude.toDouble()))
 
@@ -333,13 +364,13 @@ fun DataCollectionScreen(navController: NavController) {
                                         append("quantity", quantity)
                                         append("collectionDate", collectionDate)
                                         append("qualityNotes", qualityNotes)
-                                        append("herbImage", imageFileName) // <-- CHANGED: Now sends file name
+                                        append("herbImage", imageFileName)
                                     }))
                                 }
 
                                 if (dataSubmitResponse.status.isSuccess()) {
-                                    Toast.makeText(context, "Data submitted successfully!", Toast.LENGTH_LONG).show()
-                                    navController.popBackStack()
+                                    // --- MODIFIED: Show QR code dialog on success ---
+                                    showQrCodeDialog = true
                                 } else {
                                     val errorBody = dataSubmitResponse.body<String>()
                                     android.util.Log.e("DataCollection", "Error ${dataSubmitResponse.status.value}: $errorBody")
