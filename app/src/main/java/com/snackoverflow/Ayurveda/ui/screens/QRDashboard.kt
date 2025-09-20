@@ -95,6 +95,17 @@ fun HerbActionScreen(navController: NavController) {
                     navController.navigate(Screen.CollectorReport.route)
                 }
             )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            ActionCard(
+                title = "Get batch details",
+                description = "Enter batch ID to get details.",
+                icon = Icons.Default.Addchart, // A more descriptive icon
+                onClick = {
+                    navController.navigate(Screen.BatchDetails.route)
+                }
+            )
         }
     }
 }

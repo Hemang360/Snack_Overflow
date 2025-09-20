@@ -56,6 +56,32 @@ data class LocationData(
     val latitude: Double,
     val longitude: Double
 )
+// --- Data classes for request ---
+@Serializable
+data class GPSCoordinates(
+    val latitude: Double,
+    val longitude: Double
+)
+
+@Serializable
+data class EnvironmentalData(
+    val temperature: String,
+    val humidity: String,
+    val soilType: String
+)
+
+@Serializable
+data class HerbBatchRequest(
+    val userId: String,
+    val batchId: String,
+    val herbName: String,
+    val harvestDate: String,
+    val farmLocation: String,
+    val quantity: String,
+    val gpsCoordinates: GPSCoordinates,
+    val collectorId: String,
+    val environmentalData: EnvironmentalData
+)
 
 // --- Helper Function for Safe Location Access ---
 private fun requestCurrentLocation(
@@ -351,25 +377,32 @@ fun DataCollectionScreen(navController: NavController) {
                             isLoading = true
                             try {
                                 val imageFileName = getFileName(context, currentImageUri) ?: "unknown_image.jpg"
-
                                 val jwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFlMzM3MzNmLTQ3NWMtNDE4MS1iYmVhLThlOTVmMmE2MDE3YyIsInVzZXJuYW1lIjoieG9ueW5peCIsInJvbGUiOiJjb2xsZWN0b3IiLCJwZXJtaXNzaW9ucyI6WyJjcmVhdGU6Y29sbGVjdGlvbiIsInZpZXc6Y29sbGVjdGlvbiJdLCJpYXQiOjE3NTgxOTA1MjYsImV4cCI6MTc1ODI3NjkyNn0.1g1oiGEY16uTjghODAEdxk73cCc1NGsb7362Hv37LjA"
-                                val locationJsonString = Json.encodeToString(LocationData(latitude.toDouble(), longitude.toDouble()))
 
-                                val dataSubmitResponse = client.post("https://unenlightening-lisha-unsurveyable.ngrok-free.app/api/protected/collection-events") {
+                                // Build the request object using data classes
+                                val herbBatchRequest = HerbBatchRequest(
+                                    userId = collectorId,
+                                    batchId = "BATCH-${System.currentTimeMillis()}",
+                                    herbName = species,
+                                    harvestDate = collectionDate,
+                                    farmLocation = "Wayanad, Kerala",
+                                    quantity = quantity,
+                                    gpsCoordinates = GPSCoordinates(latitude.toDouble(), longitude.toDouble()),
+                                    collectorId = collectorId,
+                                    environmentalData = EnvironmentalData(
+                                        temperature = "28°C",
+                                        humidity = "75%",
+                                        soilType = "Red laterite soil"
+                                    )
+                                )
+
+                                val dataSubmitResponse = client.post("http://192.168.1.8:5000/createHerbBatch") {
                                     header(HttpHeaders.Authorization, "Bearer $jwtToken")
-                                    setBody(MultiPartFormDataContent(formData {
-                                        append("species", species)
-                                        append("collectorId", collectorId)
-                                        append("gpsCoordinates", locationJsonString)
-                                        append("quantity", quantity)
-                                        append("collectionDate", collectionDate)
-                                        append("qualityNotes", qualityNotes)
-                                        append("herbImage", imageFileName)
-                                    }))
+                                    contentType(ContentType.Application.Json)
+                                    setBody(herbBatchRequest)
                                 }
 
                                 if (dataSubmitResponse.status.isSuccess()) {
-                                    // --- MODIFIED: Show QR code dialog on success ---
                                     showQrCodeDialog = true
                                 } else {
                                     val errorBody = dataSubmitResponse.body<String>()
@@ -388,7 +421,10 @@ fun DataCollectionScreen(navController: NavController) {
                     enabled = isFormValid && !isLoading
                 ) {
                     if (isLoading) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(24.dp))
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(24.dp)
+                        )
                     } else {
                         Text("Submit Data")
                     }
