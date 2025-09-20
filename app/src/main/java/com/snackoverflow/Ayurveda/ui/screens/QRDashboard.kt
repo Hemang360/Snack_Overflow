@@ -76,14 +76,6 @@ fun HerbActionScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(48.dp))
 
             // --- Replaced Buttons with beautiful, descriptive Cards ---
-            ActionCard(
-                title = "View Herb Data",
-                description = "Trace a herb's journey on the blockchain.",
-                icon = Icons.AutoMirrored.Filled.Subject, // A more descriptive icon
-                onClick = {
-                    navController.navigate(Screen.Record.route)
-                }
-            )
 
             Spacer(modifier = Modifier.height(20.dp))
 
