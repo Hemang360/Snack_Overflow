@@ -1,5 +1,3 @@
-
-
 /*
  * Copyright IBM Corp. All Rights Reserved.
  *
@@ -19,20 +17,127 @@ class ehrChainCode extends Contract {
         return `${type}-${txId}`;
     }
 
+    // Enhanced caller attributes with fallback for admin identities
     getCallerAttributes(ctx) {
         const role = ctx.clientIdentity.getAttributeValue('role');
         const uuid = ctx.clientIdentity.getAttributeValue('uuid');
+        const mspId = ctx.clientIdentity.getMSPID();
+        const commonName = ctx.clientIdentity.getID();
 
+        // Extract identity name from X.509 subject
+        const identityName = this.extractIdentityName(commonName);
+
+        // For admin identities, provide fallback role based on MSP and identity name
         if (!role || !uuid) {
-            throw new Error('Missing role or uuid in client certificate');
+            const adminRole = this.determineAdminRole(identityName, mspId);
+            if (adminRole) {
+                return { 
+                    role: adminRole, 
+                    uuid: identityName,
+                    isAdmin: true,
+                    mspId: mspId
+                };
+            }
+            
+            throw new Error(`Missing role or uuid in client certificate. Identity: ${identityName}, MSP: ${mspId}`);
         }
 
-        return { role, uuid };
+        return { 
+            role, 
+            uuid, 
+            isAdmin: false,
+            mspId: mspId
+        };
     }
 
-    // Validation helper functions
-    validateGeoLocation(latitude, longitude, approvedZones) {
-        // Simple validation for demonstration - checks if coordinates are within approved zones
+    // Extract identity name from X.509 subject
+    extractIdentityName(commonName) {
+        // Extract CN from subject string like "CN=admin::CN=ca-org1"
+        const cnMatch = commonName.match(/CN=([^:,]+)/);
+        return cnMatch ? cnMatch[1] : commonName;
+    }
+
+    // Determine admin role based on identity name and MSP
+    determineAdminRole(identityName, mspId) {
+        const adminMappings = {
+            'Org1MSP': {
+                'admin': 'regulator',
+                'regulatorAdmin': 'regulator',
+                'Regulator01': 'regulator'
+            },
+            'Org2MSP': {
+                'admin': 'labOverseer',
+                'labAdmin': 'labOverseer',
+                'LabOverseer01': 'labOverseer'
+            }
+        };
+
+        return adminMappings[mspId]?.[identityName] || null;
+    }
+
+    // Enhanced authorization check
+    checkAuthorization(callerInfo, requiredRole, requiredMSP = null) {
+        if (requiredMSP && callerInfo.mspId !== requiredMSP) {
+            throw new Error(`Access denied: Operation requires ${requiredMSP} membership. Current MSP: ${callerInfo.mspId}`);
+        }
+
+        if (callerInfo.role !== requiredRole) {
+            throw new Error(`Access denied: Operation requires '${requiredRole}' role. Current role: '${callerInfo.role}'`);
+        }
+
+        return true;
+    }
+
+    // Validation helper function for geo-location
+    validateGeoLocation(latitude, longitude) {
+        // Expanded approved zones covering major medicinal plant regions in India
+        const approvedZones = [
+            // North India Zones
+            { name: 'Uttarakhand Himalayan Zone', minLat: 28.4, maxLat: 31.5, minLong: 77.6, maxLong: 81.1 },
+            { name: 'Himachal Pradesh Mountain Zone', minLat: 30.2, maxLat: 33.1, minLong: 75.6, maxLong: 79.0 },
+            { name: 'Kashmir Valley Zone', minLat: 32.5, maxLat: 35.0, minLong: 73.5, maxLong: 76.5 },
+            { name: 'Punjab Agricultural Zone', minLat: 29.5, maxLat: 32.5, minLong: 73.8, maxLong: 76.8 },
+            { name: 'Haryana Plains Zone', minLat: 27.4, maxLat: 30.9, minLong: 74.3, maxLong: 77.6 },
+
+            // Central India Zones
+            { name: 'Rajasthan Desert Zone', minLat: 23.0, maxLat: 30.2, minLong: 69.5, maxLong: 78.2 },
+            { name: 'Gujarat Arid Zone', minLat: 20.1, maxLat: 24.7, minLong: 68.1, maxLong: 74.5 },
+            { name: 'Madhya Pradesh Forest Zone', minLat: 21.1, maxLat: 26.9, minLong: 74.0, maxLong: 82.8 },
+            { name: 'Chhattisgarh Tribal Zone', minLat: 17.8, maxLat: 24.1, minLong: 80.2, maxLong: 84.4 },
+            { name: 'Uttar Pradesh Gangetic Zone', minLat: 23.9, maxLat: 30.4, minLong: 77.1, maxLong: 84.6 },
+
+            // East India Zones
+            { name: 'West Bengal Sundarbans Zone', minLat: 21.5, maxLat: 27.2, minLong: 85.8, maxLong: 89.9 },
+            { name: 'Odisha Coastal Zone', minLat: 17.8, maxLat: 22.6, minLong: 81.3, maxLong: 87.5 },
+            { name: 'Jharkhand Plateau Zone', minLat: 21.9, maxLat: 25.3, minLong: 83.3, maxLong: 87.9 },
+            { name: 'Bihar Plains Zone', minLat: 24.3, maxLat: 27.8, minLong: 83.3, maxLong: 88.3 },
+            { name: 'Assam Valley Zone', minLat: 24.1, maxLat: 28.0, minLong: 89.7, maxLong: 96.0 },
+            { name: 'Meghalaya Hills Zone', minLat: 25.0, maxLat: 26.1, minLong: 89.8, maxLong: 92.8 },
+            { name: 'Arunachal Pradesh Zone', minLat: 26.3, maxLat: 29.3, minLong: 91.5, maxLong: 97.4 },
+            { name: 'Sikkim Alpine Zone', minLat: 27.1, maxLat: 28.1, minLong: 88.0, maxLong: 88.9 },
+
+            // South India Zones
+            { name: 'Kerala Western Ghats Zone', minLat: 8.0, maxLat: 12.8, minLong: 74.8, maxLong: 77.4 },
+            { name: 'Karnataka Medicinal Zone', minLat: 11.5, maxLat: 18.5, minLong: 74.0, maxLong: 78.6 },
+            { name: 'Tamil Nadu Herbal Zone', minLat: 8.0, maxLat: 13.6, minLong: 76.2, maxLong: 80.3 },
+            { name: 'Andhra Pradesh Coastal Zone', minLat: 12.6, maxLat: 19.1, minLong: 76.7, maxLong: 84.8 },
+            { name: 'Telangana Deccan Zone', minLat: 15.8, maxLat: 19.9, minLong: 77.2, maxLong: 81.3 },
+            { name: 'Goa Coastal Zone', minLat: 14.9, maxLat: 15.8, minLong: 73.7, maxLong: 74.3 },
+
+            // West India Zones
+            { name: 'Maharashtra Western Ghats', minLat: 15.6, maxLat: 22.0, minLong: 72.6, maxLong: 80.9 },
+
+            // Northeast Special Zones
+            { name: 'Manipur Valley Zone', minLat: 23.8, maxLat: 25.7, minLong: 92.9, maxLong: 94.8 },
+            { name: 'Nagaland Hills Zone', minLat: 25.2, maxLat: 27.0, minLong: 93.3, maxLong: 95.2 },
+            { name: 'Tripura Forest Zone', minLat: 22.9, maxLat: 24.3, minLong: 91.1, maxLong: 92.3 },
+            { name: 'Mizoram Hills Zone', minLat: 21.9, maxLat: 24.5, minLong: 92.2, maxLong: 93.4 },
+
+            // Island Zones
+            { name: 'Andaman Islands Zone', minLat: 6.5, maxLat: 14.0, minLong: 92.2, maxLong: 94.0 },
+            { name: 'Lakshadweep Islands Zone', minLat: 8.0, maxLat: 12.3, minLong: 71.0, maxLong: 74.0 }
+        ];
+
         for (const zone of approvedZones) {
             if (latitude >= zone.minLat && latitude <= zone.maxLat &&
                 longitude >= zone.minLong && longitude <= zone.maxLong) {
@@ -42,182 +147,13 @@ class ehrChainCode extends Contract {
         return { valid: false, zone: null };
     }
 
-    validateSeasonalHarvest(herbName, harvestDate) {
-        // Sample seasonal restrictions (in practice, this would be from National Medicinal Plants Board data)
-        const seasonalRestrictions = {
-            'Ashwagandha': { startMonth: 10, endMonth: 3 }, // Oct-Mar
-            'Turmeric': { startMonth: 8, endMonth: 11 }, // Aug-Nov
-            'Brahmi': { startMonth: 6, endMonth: 9 }, // Jun-Sep
-            'Neem': { startMonth: 1, endMonth: 12 }, // Year-round
-            'Tulsi': { startMonth: 1, endMonth: 12 } // Year-round
-        };
-
-        const restriction = seasonalRestrictions[herbName];
-        if (!restriction) {
-            return { valid: true, message: "No seasonal restrictions defined" };
-        }
-
-        const harvestMonth = new Date(harvestDate).getMonth() + 1; // getMonth() is 0-based
-
-        if (restriction.startMonth <= restriction.endMonth) {
-            // Same calendar year restriction
-            if (harvestMonth >= restriction.startMonth && harvestMonth <= restriction.endMonth) {
-                return { valid: true, message: "Within allowed harvest season" };
-            }
-        } else {
-            // Cross-year restriction (e.g., Oct-Mar)
-            if (harvestMonth >= restriction.startMonth || harvestMonth <= restriction.endMonth) {
-                return { valid: true, message: "Within allowed harvest season" };
-            }
-        }
-
-        return {
-            valid: false,
-            message: `${herbName} can only be harvested between month ${restriction.startMonth} and ${restriction.endMonth}`
-        };
-    }
-
-    validateQuality(herbName, qualityMetrics) {
-        // Sample quality thresholds (moisture, pesticide limits, etc.)
-        const qualityStandards = {
-            'Ashwagandha': { maxMoisture: 12, maxPesticide: 0.5, minPurity: 95 },
-            'Turmeric': { maxMoisture: 10, maxPesticide: 0.3, minPurity: 97 },
-            'Brahmi': { maxMoisture: 14, maxPesticide: 0.2, minPurity: 92 },
-            'Neem': { maxMoisture: 11, maxPesticide: 0.1, minPurity: 90 },
-            'Tulsi': { maxMoisture: 13, maxPesticide: 0.1, minPurity: 94 }
-        };
-
-        const standard = qualityStandards[herbName];
-        if (!standard) {
-            return { valid: true, message: "No quality standards defined", warnings: [] };
-        }
-
-        const issues = [];
-        const warnings = [];
-
-        if (qualityMetrics.moisture > standard.maxMoisture) {
-            issues.push(`Moisture content ${qualityMetrics.moisture}% exceeds limit ${standard.maxMoisture}%`);
-        }
-
-        if (qualityMetrics.pesticide > standard.maxPesticide) {
-            issues.push(`Pesticide residue ${qualityMetrics.pesticide}ppm exceeds limit ${standard.maxPesticide}ppm`);
-        }
-
-        if (qualityMetrics.purity < standard.minPurity) {
-            issues.push(`Purity ${qualityMetrics.purity}% below minimum ${standard.minPurity}%`);
-        }
-
-        // Add warnings for values close to limits
-        if (qualityMetrics.moisture > standard.maxMoisture * 0.8) {
-            warnings.push("Moisture level approaching maximum limit");
-        }
-
-        return {
-            valid: issues.length === 0,
-            message: issues.length === 0 ? "Quality standards met" : "Quality issues detected",
-            issues,
-            warnings
-        };
-    }
-
-    validateSustainability(farmLocation, herbName, quantity) {
-        // Sample sustainability rules and conservation limits
-        const conservationLimits = {
-            'Ashwagandha': { maxQuantityPerSeason: 500, vulnerabilityStatus: 'moderate' },
-            'Turmeric': { maxQuantityPerSeason: 1000, vulnerabilityStatus: 'low' },
-            'Brahmi': { maxQuantityPerSeason: 200, vulnerabilityStatus: 'high' },
-            'Neem': { maxQuantityPerSeason: 800, vulnerabilityStatus: 'low' },
-            'Tulsi': { maxQuantityPerSeason: 300, vulnerabilityStatus: 'moderate' }
-        };
-
-        const limit = conservationLimits[herbName];
-        if (!limit) {
-            return { valid: true, message: "No conservation limits defined", sustainabilityScore: 80 };
-        }
-
-        const quantityNum = parseFloat(quantity.replace(/[^0-9.]/g, '')); // Extract numeric value
-        const issues = [];
-        const recommendations = [];
-
-        if (quantityNum > limit.maxQuantityPerSeason) {
-            issues.push(`Harvest quantity ${quantity} exceeds seasonal limit ${limit.maxQuantityPerSeason}kg`);
-        }
-
-        if (limit.vulnerabilityStatus === 'high') {
-            recommendations.push("This species requires special conservation measures due to high vulnerability");
-        }
-
-        // Calculate sustainability score based on various factors
-        let sustainabilityScore = 100;
-        if (quantityNum > limit.maxQuantityPerSeason) sustainabilityScore -= 30;
-        if (limit.vulnerabilityStatus === 'high') sustainabilityScore -= 20;
-        if (limit.vulnerabilityStatus === 'moderate') sustainabilityScore -= 10;
-
-        return {
-            valid: issues.length === 0,
-            message: issues.length === 0 ? "Sustainability requirements met" : "Sustainability concerns detected",
-            issues,
-            recommendations,
-            sustainabilityScore: Math.max(sustainabilityScore, 0),
-            vulnerabilityStatus: limit.vulnerabilityStatus
-        };
-    }
-
-    validateProcessingConditions(processingType, conditions, herbName) {
-        // Sample processing validations
-        const processingStandards = {
-            'drying': {
-                'Turmeric': { maxTemp: 60, minDuration: 48, maxMoisture: 10 },
-                'Ashwagandha': { maxTemp: 50, minDuration: 72, maxMoisture: 12 },
-                'Brahmi': { maxTemp: 45, minDuration: 60, maxMoisture: 14 }
-            },
-            'grinding': {
-                'Turmeric': { maxTemp: 40, meshSize: '80-100', maxDuration: 30 },
-                'Ashwagandha': { maxTemp: 35, meshSize: '60-80', maxDuration: 25 }
-            }
-        };
-
-        const standard = processingStandards[processingType]?.[herbName];
-        if (!standard) {
-            return { valid: true, message: "No processing standards defined", warnings: [] };
-        }
-
-        const issues = [];
-        const warnings = [];
-
-        if (processingType === 'drying') {
-            if (conditions.temperature > standard.maxTemp) {
-                issues.push(`Drying temperature ${conditions.temperature}°C exceeds maximum ${standard.maxTemp}°C`);
-            }
-            if (conditions.duration < standard.minDuration) {
-                issues.push(`Drying duration ${conditions.duration}h below minimum ${standard.minDuration}h`);
-            }
-        }
-
-        if (processingType === 'grinding') {
-            if (conditions.temperature > standard.maxTemp) {
-                issues.push(`Grinding temperature ${conditions.temperature}°C exceeds maximum ${standard.maxTemp}°C`);
-            }
-        }
-
-        return {
-            valid: issues.length === 0,
-            message: issues.length === 0 ? "Processing conditions validated" : "Processing issues detected",
-            issues,
-            warnings,
-            standard
-        };
-    }
-
-    // Onboard farmer
+    // Onboard farmer - Updated with better authorization
     async onboardFarmer(ctx, args) {
-        const { farmerId, name, farmLocation } = JSON.parse(args);
-        const { role, uuid: callerId } = this.getCallerAttributes(ctx);
-        const orgMSP = ctx.clientIdentity.getMSPID();
+        const { farmerId, name, farmLocation, contact, certifications } = JSON.parse(args);
+        const callerInfo = this.getCallerAttributes(ctx);
 
-        if (orgMSP !== 'Org1MSP' || role !== 'regulator') {
-            throw new Error('Only regulator can onboard farmer.');
-        }
+        // Check authorization - only regulators from Org1 can onboard farmers
+        this.checkAuthorization(callerInfo, 'regulator', 'Org1MSP');
 
         const existing = await ctx.stub.getState(farmerId);
         if (existing && existing.length > 0) {
@@ -227,43 +163,65 @@ class ehrChainCode extends Contract {
         const recordId = this.generateRecordId(ctx, 'FARMER');
         const timestamp = ctx.stub.getTxTimestamp().seconds.low.toString();
 
-        const record = {
+        const provenance = {
             resourceType: "Provenance",
-            recordId,
-            farmerId,
-            name,
-            farmLocation,
-            regulatorId: callerId,
-            target: [{ reference: farmerId }],
+            id: recordId,
+            target: [{ reference: `Farmer/${farmerId}` }],
             occurredDateTime: new Date(parseInt(timestamp) * 1000).toISOString(),
             recorded: new Date(parseInt(timestamp) * 1000).toISOString(),
-            location: { reference: farmLocation },
-            why: "Farmer onboarding",
-            activity: { coding: [{ code: "CREATE", display: "Create" }] },
+            location: { reference: `Location/${farmLocation}` },
+            why: "Farmer onboarding and registration",
+            activity: {
+                coding: [{
+                    code: "AU",
+                    display: "Authenticated"
+                }]
+            },
             agent: [{
-                type: { coding: [{ code: "REGULATOR", display: "Regulator" }] },
-                who: { reference: callerId }
+                type: {
+                    coding: [{
+                        code: "verifier",
+                        display: "Verifier"
+                    }]
+                },
+                who: { reference: `Practitioner/${callerInfo.uuid}` }
             }],
             entity: [{
                 role: "source",
-                what: { reference: farmerId }
-            }],
-            timestamp
+                what: { reference: `Farmer/${farmerId}` }
+            }]
         };
 
-        await ctx.stub.putState(farmerId, Buffer.from(stringify(record)));
-        return stringify(record);
+        const farmer = {
+            resourceType: "Bundle",
+            type: "collection",
+            entry: [{
+                resource: {
+                    resourceType: "Practitioner",
+                    id: farmerId,
+                    identifier: [{ value: farmerId }],
+                    name: [{ text: name }],
+                    address: [{ text: farmLocation }],
+                    telecom: contact ? [{ system: "phone", value: contact }] : [],
+                    qualification: certifications || []
+                }
+            }, {
+                resource: provenance
+            }],
+            timestamp: new Date(parseInt(timestamp) * 1000).toISOString()
+        };
+
+        await ctx.stub.putState(farmerId, Buffer.from(stringify(farmer)));
+        return stringify(farmer);
     }
 
-    // Onboard laboratory (by regulator in Org2)
+    // Onboard laboratory - Updated with better authorization
     async onboardLaboratory(ctx, args) {
-        const { laboratoryId, labName, location, accreditation, certifications } = JSON.parse(args);
-        const { role, uuid: callerId } = this.getCallerAttributes(ctx);
-        const orgMSP = ctx.clientIdentity.getMSPID();
+        const { laboratoryId, labName, location, accreditation, certifications, contact } = JSON.parse(args);
+        const callerInfo = this.getCallerAttributes(ctx);
 
-        if (orgMSP !== 'Org2MSP' || role !== 'labOverseer') {
-            throw new Error('Only lab overseer from Org2 can onboard laboratories.');
-        }
+        // Check authorization - only lab overseers from Org2 can onboard laboratories
+        this.checkAuthorization(callerInfo, 'labOverseer', 'Org2MSP');
 
         const existing = await ctx.stub.getState(laboratoryId);
         if (existing && existing.length > 0) {
@@ -273,45 +231,77 @@ class ehrChainCode extends Contract {
         const recordId = this.generateRecordId(ctx, 'LAB');
         const timestamp = ctx.stub.getTxTimestamp().seconds.low.toString();
 
-        const record = {
+        const provenance = {
             resourceType: "Provenance",
-            recordId,
-            laboratoryId,
-            labName,
-            location,
-            accreditation,
-            certifications,
-            labOverseerId: callerId,
-            target: [{ reference: laboratoryId }],
+            id: recordId,
+            target: [{ reference: `Organization/${laboratoryId}` }],
             occurredDateTime: new Date(parseInt(timestamp) * 1000).toISOString(),
             recorded: new Date(parseInt(timestamp) * 1000).toISOString(),
-            location: { reference: location },
-            why: "Laboratory onboarding",
-            activity: { coding: [{ code: "CREATE", display: "Create" }] },
+            location: { reference: `Location/${location}` },
+            why: "Laboratory onboarding and accreditation verification",
+            activity: {
+                coding: [{
+                    code: "AU",
+                    display: "Authenticated"
+                }]
+            },
             agent: [{
-                type: { coding: [{ code: "LAB_OVERSEER", display: "Lab Overseer" }] },
-                who: { reference: callerId }
+                type: {
+                    coding: [{
+                        code: "verifier",
+                        display: "Verifier"
+                    }]
+                },
+                who: { reference: `Practitioner/${callerInfo.uuid}` }
             }],
             entity: [{
                 role: "source",
-                what: { reference: laboratoryId }
-            }],
-            timestamp
+                what: { reference: `Organization/${laboratoryId}` }
+            }]
         };
 
-        await ctx.stub.putState(laboratoryId, Buffer.from(stringify(record)));
-        return stringify(record);
+        const laboratory = {
+            resourceType: "Bundle",
+            type: "collection",
+            entry: [{
+                resource: {
+                    resourceType: "Organization",
+                    id: laboratoryId,
+                    identifier: [{ value: laboratoryId }],
+                    type: [{
+                        coding: [{
+                            code: "laboratory",
+                            display: "Laboratory"
+                        }]
+                    }],
+                    name: labName,
+                    address: [{ text: location }],
+                    telecom: contact ? [{ system: "phone", value: contact }] : [],
+                    extension: [{
+                        url: "accreditation",
+                        valueString: JSON.stringify(accreditation)
+                    }, {
+                        url: "certifications",
+                        valueString: JSON.stringify(certifications)
+                    }]
+                }
+            }, {
+                resource: provenance
+            }],
+            timestamp: new Date(parseInt(timestamp) * 1000).toISOString()
+        };
+
+        await ctx.stub.putState(laboratoryId, Buffer.from(stringify(laboratory)));
+        return stringify(laboratory);
     }
 
-    // Onboard manufacturer
+    // Onboard manufacturer - Updated with better authorization
     async onboardManufacturer(ctx, args) {
-        const { manufacturerId, companyName, name, location } = JSON.parse(args);
-        const { role, uuid: callerId } = this.getCallerAttributes(ctx);
-        const orgMSP = ctx.clientIdentity.getMSPID();
+        const { manufacturerId, companyName, name, location, licenses, contact } = JSON.parse(args);
+        const callerInfo = this.getCallerAttributes(ctx);
 
-        if (orgMSP !== 'Org1MSP' || role !== 'regulator') {
-            throw new Error('Only regulator can onboard manufacturer.');
-        }
+        // Check authorization - only regulators from Org1 can onboard manufacturers
+        this.checkAuthorization(callerInfo, 'regulator', 'Org1MSP');
 
         const existing = await ctx.stub.getState(manufacturerId);
         if (existing && existing.length > 0) {
@@ -321,51 +311,93 @@ class ehrChainCode extends Contract {
         const recordId = this.generateRecordId(ctx, 'MFG');
         const timestamp = ctx.stub.getTxTimestamp().seconds.low.toString();
 
-        const record = {
+        const provenance = {
             resourceType: "Provenance",
-            recordId,
-            manufacturerId,
-            companyName,
-            name,
-            location,
-            regulatorId: callerId,
-            target: [{ reference: manufacturerId }],
+            id: recordId,
+            target: [{ reference: `Organization/${manufacturerId}` }],
             occurredDateTime: new Date(parseInt(timestamp) * 1000).toISOString(),
             recorded: new Date(parseInt(timestamp) * 1000).toISOString(),
-            location: { reference: location },
-            why: "Manufacturer onboarding",
-            activity: { coding: [{ code: "CREATE", display: "Create" }] },
+            location: { reference: `Location/${location}` },
+            why: "Manufacturer onboarding and license verification",
+            activity: {
+                coding: [{
+                    code: "AU",
+                    display: "Authenticated"
+                }]
+            },
             agent: [{
-                type: { coding: [{ code: "REGULATOR", display: "Regulator" }] },
-                who: { reference: callerId }
+                type: {
+                    coding: [{
+                        code: "verifier",
+                        display: "Verifier"
+                    }]
+                },
+                who: { reference: `Practitioner/${callerInfo.uuid}` }
             }],
             entity: [{
                 role: "source",
-                what: { reference: manufacturerId }
-            }],
-            timestamp
+                what: { reference: `Organization/${manufacturerId}` }
+            }]
         };
 
-        await ctx.stub.putState(manufacturerId, Buffer.from(stringify(record)));
-        return stringify(record);
+        const manufacturer = {
+            resourceType: "Bundle",
+            type: "collection",
+            entry: [{
+                resource: {
+                    resourceType: "Organization",
+                    id: manufacturerId,
+                    identifier: [{ value: manufacturerId }],
+                    type: [{
+                        coding: [{
+                            code: "mfr",
+                            display: "Manufacturer"
+                        }]
+                    }],
+                    name: companyName,
+                    address: [{ text: location }],
+                    telecom: contact ? [{ system: "phone", value: contact }] : [],
+                    extension: [{
+                        url: "licenses",
+                        valueString: JSON.stringify(licenses)
+                    }, {
+                        url: "contactPerson",
+                        valueString: name
+                    }]
+                }
+            }, {
+                resource: provenance
+            }],
+            timestamp: new Date(parseInt(timestamp) * 1000).toISOString()
+        };
+
+        await ctx.stub.putState(manufacturerId, Buffer.from(stringify(manufacturer)));
+        return stringify(manufacturer);
     }
 
-    // Create herb batch with basic validations (farmers don't provide quality metrics)
+    // Create herb batch - Updated with better authorization
     async createHerbBatch(ctx, args) {
         const {
             batchId,
             herbName,
+            scientificName,
             harvestDate,
             farmLocation,
             quantity,
-            gpsCoordinates, // { latitude, longitude }
+            unit,
+            gpsCoordinates,
             collectorId,
-            environmentalData // { temperature, humidity, soilType }
+            environmentalData,
+            cultivationMethod,
+            harvestMethod,
+            plantPart,
+            images
         } = JSON.parse(args);
 
-        const { role, uuid: callerId } = this.getCallerAttributes(ctx);
+        const callerInfo = this.getCallerAttributes(ctx);
 
-        if (role !== 'farmer') {
+        // Check authorization - only farmers can create herb batches
+        if (callerInfo.role !== 'farmer') {
             throw new Error('Only farmers can create herb batches');
         }
 
@@ -374,141 +406,164 @@ class ehrChainCode extends Contract {
             throw new Error(`Batch ${batchId} already exists`);
         }
 
-        // 1. Geo-fencing validation
-        const approvedZones = [
-            { name: 'Kerala Traditional Zone', minLat: 8.0, maxLat: 12.8, minLong: 74.8, maxLong: 77.4 },
-            { name: 'Karnataka Medicinal Zone', minLat: 11.5, maxLat: 18.5, minLong: 74.0, maxLong: 78.6 },
-            { name: 'Tamil Nadu Herbal Zone', minLat: 8.0, maxLat: 13.6, minLong: 76.2, maxLong: 80.3 },
-            { name: 'Uttarakhand Mountain Zone', minLat: 28.4, maxLat: 31.5, minLong: 77.6, maxLong: 81.1 },
-            { name: 'Gujarat Arid Zone', minLat: 20.1, maxLat: 24.7, minLong: 68.1, maxLong: 74.5 }
-        ];
-
+        // Geo-fencing validation
         const geoValidation = this.validateGeoLocation(
             gpsCoordinates.latitude,
-            gpsCoordinates.longitude,
-            approvedZones
+            gpsCoordinates.longitude
         );
 
         if (!geoValidation.valid) {
             throw new Error(`Collection location not within approved harvesting zones. GPS: ${gpsCoordinates.latitude}, ${gpsCoordinates.longitude}`);
         }
 
-        // 2. Seasonal harvest validation
-        const seasonalValidation = this.validateSeasonalHarvest(herbName, harvestDate);
-        if (!seasonalValidation.valid) {
-            throw new Error(`Seasonal restriction violation: ${seasonalValidation.message}`);
-        }
-
-        // 3. Sustainability validation (no quality metrics needed)
-        const sustainabilityValidation = this.validateSustainability(farmLocation, herbName, quantity);
-        if (!sustainabilityValidation.valid) {
-            throw new Error(`Sustainability concerns: ${sustainabilityValidation.issues.join(', ')}`);
-        }
-
         const recordId = this.generateRecordId(ctx, 'BATCH');
         const timestamp = ctx.stub.getTxTimestamp().seconds.low.toString();
 
-        // Create Collection Event (FHIR-style) - without quality metrics
-        const collectionEvent = {
-            resourceType: "CollectionEvent",
-            id: `collection-${recordId}`,
-            eventType: "harvest",
-            species: herbName,
-            location: {
-                coordinates: gpsCoordinates,
-                zone: geoValidation.zone,
-                address: farmLocation
-            },
-            timestamp: harvestDate,
-            collector: {
-                id: collectorId || callerId,
-                farmerId: callerId
-            },
-            quantity: quantity,
-            environmentalData: environmentalData,
-            validations: {
-                geoFencing: geoValidation,
-                seasonal: seasonalValidation,
-                sustainability: sustainabilityValidation
-            }
-        };
-
+        // Create FHIR-compliant Provenance
         const provenance = {
             resourceType: "Provenance",
-            recordId,
-            target: [{ reference: batchId }],
+            id: recordId,
+            target: [{ reference: `Specimen/${batchId}` }],
             occurredDateTime: harvestDate,
             recorded: new Date(parseInt(timestamp) * 1000).toISOString(),
             location: {
-                reference: farmLocation,
-                coordinates: gpsCoordinates,
-                approvedZone: geoValidation.zone
+                reference: `Location/${farmLocation}`,
+                extension: [{
+                    url: "gps-coordinates",
+                    valueString: JSON.stringify(gpsCoordinates)
+                }, {
+                    url: "approved-zone",
+                    valueString: geoValidation.zone
+                }]
             },
-            why: "Herb batch creation with basic validation",
-            activity: { coding: [{ code: "COLLECT", display: "Collection" }] },
+            why: "Medicinal herb collection and batch creation",
+            activity: {
+                coding: [{
+                    code: "COLLECT",
+                    display: "Collection"
+                }]
+            },
             agent: [{
-                type: { coding: [{ code: "FARMER", display: "Farmer" }] },
-                who: { reference: callerId }
+                type: {
+                    coding: [{
+                        code: "collector",
+                        display: "Collector"
+                    }]
+                },
+                who: { reference: `Practitioner/${collectorId || callerInfo.uuid}` }
             }],
             entity: [{
                 role: "source",
-                what: { reference: batchId }
-            }],
-            validation: {
-                geoCompliant: geoValidation.valid,
-                seasonalCompliant: seasonalValidation.valid,
-                sustainabilityScore: sustainabilityValidation.sustainabilityScore
-            }
+                what: { reference: `Specimen/${batchId}` }
+            }]
         };
 
-        const batch = {
-            batchId,
-            herbName,
-            harvestDate,
-            farmLocation,
-            quantity,
-            gpsCoordinates,
-            environmentalData,
-            farmerId: callerId,
-            collectorId: collectorId || callerId,
-            status: "harvested",
-            qualityStatus: "pending_testing", // Quality testing pending
-            validationResults: {
-                geoFencing: geoValidation,
-                seasonal: seasonalValidation,
-                sustainability: sustainabilityValidation
+        // Create FHIR Specimen resource for the batch
+        const specimen = {
+            resourceType: "Specimen",
+            id: batchId,
+            identifier: [{ value: batchId }],
+            type: {
+                coding: [{
+                    code: "410942007",
+                    display: "Medicinal plant material"
+                }],
+                text: `${herbName} (${scientificName || 'Species not specified'})`
             },
-            collectionEvent,
-            provenance,
-            timestamp,
-            certifications: {
-                sustainabilityScore: sustainabilityValidation.sustainabilityScore,
-                conservationStatus: sustainabilityValidation.vulnerabilityStatus
-            }
+            subject: {
+                reference: `Location/${farmLocation}`,
+                display: farmLocation
+            },
+            collection: {
+                collector: { reference: `Practitioner/${collectorId || callerInfo.uuid}` },
+                collectedDateTime: harvestDate,
+                quantity: {
+                    value: parseFloat(quantity),
+                    unit: unit || "kg"
+                },
+                method: {
+                    text: harvestMethod || "Manual harvesting"
+                },
+                bodySite: {
+                    text: plantPart || "Whole plant"
+                }
+            },
+            processing: [{
+                description: "Initial collection and storage",
+                timeDateTime: harvestDate
+            }],
+            container: [{
+                description: "Field collection container"
+            }],
+            extension: [{
+                url: "cultivation-method",
+                valueString: cultivationMethod || "Traditional"
+            }, {
+                url: "environmental-data",
+                valueString: JSON.stringify(environmentalData)
+            }, {
+                url: "images",
+                valueString: JSON.stringify(images || [])
+            }]
+        };
+
+        // Create bundle with all resources
+        const batch = {
+            resourceType: "Bundle",
+            type: "collection",
+            id: batchId,
+            timestamp: new Date(parseInt(timestamp) * 1000).toISOString(),
+            entry: [{
+                resource: specimen
+            }, {
+                resource: provenance
+            }],
+            meta: {
+                tag: [{
+                    code: "harvested",
+                    display: "Harvested"
+                }]
+            },
+            extension: [{
+                url: "batch-metadata",
+                valueString: JSON.stringify({
+                    farmerId: callerInfo.uuid,
+                    herbName,
+                    scientificName,
+                    geoZone: geoValidation.zone,
+                    qualityStatus: "pending_testing",
+                    createdAt: timestamp
+                })
+            }]
         };
 
         await ctx.stub.putState(batchId, Buffer.from(stringify(batch)));
         return stringify(batch);
     }
 
-    // Add quality test event (by laboratory from Org2)
+    // Add quality test - Updated with better authorization
     async addQualityTest(ctx, args) {
         const {
             batchId,
             labId,
-            testType, // moisture, pesticide, dna, purity, contaminants
+            testType,
             testResults,
             testDate,
             certification,
-            labLocation
+            labLocation,
+            testStatus,
+            testMethod,
+            equipmentUsed,
+            observations,
+            images,
+            reportUrl
         } = JSON.parse(args);
 
-        const { role, uuid: callerId } = this.getCallerAttributes(ctx);
-        const orgMSP = ctx.clientIdentity.getMSPID();
+        const callerInfo = this.getCallerAttributes(ctx);
 
-        // Allow both laboratory from Org2 and regulator from Org1 to add quality tests
-        if ((orgMSP === 'Org2MSP' && role !== 'laboratory') &&
-            (orgMSP === 'Org1MSP' && role !== 'regulator')) {
+        // Check authorization - only laboratories from Org2 or regulators from Org1 can add quality tests
+        if (!((callerInfo.mspId === 'Org2MSP' && callerInfo.role === 'laboratory') ||
+              (callerInfo.mspId === 'Org1MSP' && callerInfo.role === 'regulator'))) {
             throw new Error('Only laboratories (Org2) or regulators (Org1) can add quality test results');
         }
 
@@ -521,99 +576,146 @@ class ehrChainCode extends Contract {
         const recordId = this.generateRecordId(ctx, 'QTEST');
         const timestamp = ctx.stub.getTxTimestamp().seconds.low.toString();
 
-        // Validate test results against standards (now we have quality metrics)
-        const qualityValidation = this.validateQuality(batch.herbName, testResults);
-
-        // Create Quality Test Event (FHIR-style)
-        const qualityTestEvent = {
-            resourceType: "QualityTest",
+        // Create FHIR Observation for quality test
+        const observation = {
+            resourceType: "Observation",
             id: recordId,
-            batchId: batchId,
-            testType: testType,
-            laboratory: {
-                id: labId,
-                operator: callerId,
-                location: labLocation,
-                organization: orgMSP
+            identifier: [{ value: recordId }],
+            status: "final",
+            code: {
+                coding: [{
+                    code: "lab-test",
+                    display: testType
+                }],
+                text: testType
             },
-            testDate: testDate,
-            results: testResults,
-            standards: qualityValidation,
-            certification: certification,
-            status: qualityValidation.valid ? "PASSED" : "FAILED",
-            timestamp: new Date(parseInt(timestamp) * 1000).toISOString()
+            subject: { reference: `Specimen/${batchId}` },
+            effectiveDateTime: testDate,
+            issued: new Date(parseInt(timestamp) * 1000).toISOString(),
+            performer: [{
+                reference: `Organization/${labId}`,
+                display: `Laboratory: ${labId}`
+            }],
+            valueCodeableConcept: {
+                coding: [{
+                    code: testStatus,
+                    display: testStatus === "PASS" ? "Test Passed" : "Test Failed"
+                }]
+            },
+            interpretation: [{
+                coding: [{
+                    code: testStatus === "PASS" ? "N" : "A",
+                    display: testStatus === "PASS" ? "Normal" : "Abnormal"
+                }]
+            }],
+            note: observations ? [{ text: observations }] : [],
+            component: Object.entries(testResults || {}).map(([key, value]) => ({
+                code: { text: key },
+                valueQuantity: typeof value === 'object' ? value : { value: value }
+            })),
+            method: testMethod ? { text: testMethod } : undefined,
+            device: equipmentUsed ? { display: equipmentUsed } : undefined,
+            extension: [{
+                url: "certification",
+                valueString: JSON.stringify(certification)
+            }, {
+                url: "test-images",
+                valueString: JSON.stringify(images || [])
+            }, {
+                url: "report-url",
+                valueUrl: reportUrl
+            }]
         };
 
-        // Create provenance record
+        // Create Provenance for the test
         const testProvenance = {
             resourceType: "Provenance",
-            recordId,
-            target: [{ reference: batchId }],
+            id: `${recordId}-prov`,
+            target: [{ reference: `Observation/${recordId}` }],
             occurredDateTime: testDate,
             recorded: new Date(parseInt(timestamp) * 1000).toISOString(),
-            location: { reference: labLocation },
+            location: { reference: `Location/${labLocation}` },
             why: `Quality testing - ${testType}`,
-            activity: { coding: [{ code: "TEST", display: "Quality Test" }] },
+            activity: {
+                coding: [{
+                    code: "LABTEST",
+                    display: "Laboratory Test"
+                }]
+            },
             agent: [{
-                type: { coding: [{ code: "LABORATORY", display: "Testing Laboratory" }] },
-                who: { reference: callerId },
-                lab: { reference: labId },
-                organization: orgMSP
+                type: {
+                    coding: [{
+                        code: "performer",
+                        display: "Performer"
+                    }]
+                },
+                who: { reference: `Practitioner/${callerInfo.uuid}` },
+                onBehalfOf: { reference: `Organization/${labId}` }
             }],
             entity: [{
-                role: "revision",
-                what: { reference: batchId }
-            }],
-            validation: qualityValidation
+                role: "source",
+                what: { reference: `Specimen/${batchId}` }
+            }]
         };
 
-        // Update batch with test results - now we add quality metrics for first time
-        batch.qualityTests = batch.qualityTests || [];
-        batch.qualityTests.push(qualityTestEvent);
-        batch.qualityStatus = qualityValidation.valid ? "TESTED_PASSED" : "TESTED_FAILED";
+        // Add test results to batch bundle
+        batch.entry.push({
+            resource: observation
+        }, {
+            resource: testProvenance
+        });
 
-        // Add quality metrics to batch (first time being added)
-        if (!batch.qualityMetrics) {
-            batch.qualityMetrics = testResults;
-            batch.testedBy = labId;
-            batch.testedDate = testDate;
-        }
+        // Update batch metadata
+        const metadata = JSON.parse(batch.extension.find(ext =>
+            ext.url === "batch-metadata").valueString);
 
-        // Update certifications
-        if (qualityValidation.valid) {
-            batch.certifications = batch.certifications || {};
-            batch.certifications[`${testType}Compliant`] = true;
-            batch.certifications.lastTestDate = testDate;
-            batch.certifications.labCertified = labId;
-            batch.certifications.organicCompliant = qualityValidation.valid;
-        }
+        metadata.qualityStatus = testStatus === "PASS" ? "tested_passed" : "tested_failed";
+        metadata.lastTestDate = testDate;
+        metadata.testedBy = labId;
+
+        batch.extension.find(ext =>
+            ext.url === "batch-metadata").valueString =
+            JSON.stringify(metadata);
+
+        // Update batch status tag
+        batch.meta.tag.push({
+            code: testStatus,
+            display: testStatus === "PASS" ? "Quality Test Passed" : "Quality Test Failed"
+        });
 
         await ctx.stub.putState(batchId, Buffer.from(stringify(batch)));
 
         return stringify({
             message: `Quality test ${testType} completed for batch ${batchId}`,
-            status: qualityValidation.valid ? "PASSED" : "FAILED",
-            testEvent: qualityTestEvent,
-            validation: qualityValidation
+            status: testStatus,
+            testId: recordId,
+            observation,
+            provenance: testProvenance
         });
     }
 
-    // Add processing step event (by processor/manufacturer)
+    // Add processing step - Updated with better authorization
     async addProcessingStep(ctx, args) {
         const {
             batchId,
-            processingType, // drying, grinding, extraction, packaging
+            processingType,
             processingDate,
             processingLocation,
-            processingConditions, // temperature, duration, method
-            outputMetrics, // yield, moisture_after, quality_grade
+            inputQuantity,
+            outputQuantity,
+            processingDetails,
             equipmentUsed,
-            operatorId
+            operatorId,
+            temperature,
+            duration,
+            additionalParameters,
+            images,
+            notes
         } = JSON.parse(args);
 
-        const { role, uuid: callerId } = this.getCallerAttributes(ctx);
+        const callerInfo = this.getCallerAttributes(ctx);
 
-        if (role !== 'manufacturer' && role !== 'processor') {
+        if (callerInfo.role !== 'manufacturer' && callerInfo.role !== 'processor') {
             throw new Error('Only manufacturers or processors can add processing steps');
         }
 
@@ -626,81 +728,103 @@ class ehrChainCode extends Contract {
         const recordId = this.generateRecordId(ctx, 'PROCESS');
         const timestamp = ctx.stub.getTxTimestamp().seconds.low.toString();
 
-        // Validate processing conditions
-        const processingValidation = this.validateProcessingConditions(processingType, processingConditions, batch.herbName);
-
-        // Create Processing Step Event (FHIR-style)
-        const processingStepEvent = {
-            resourceType: "ProcessingStep",
+        // Create FHIR Procedure for processing step
+        const procedure = {
+            resourceType: "Procedure",
             id: recordId,
-            batchId: batchId,
-            processingType: processingType,
-            processor: {
-                id: callerId,
-                operator: operatorId || callerId,
-                location: processingLocation
+            identifier: [{ value: recordId }],
+            status: "completed",
+            code: {
+                text: processingType
             },
-            processingDate: processingDate,
-            conditions: processingConditions,
-            equipment: equipmentUsed,
-            inputMetrics: {
-                quantity: batch.quantity,
-                moisture: batch.qualityMetrics?.moisture || 'unknown'
-            },
-            outputMetrics: outputMetrics,
-            validation: processingValidation,
-            status: processingValidation.valid ? "COMPLETED" : "ISSUES_DETECTED",
-            timestamp: new Date(parseInt(timestamp) * 1000).toISOString()
+            subject: { reference: `Specimen/${batchId}` },
+            performedDateTime: processingDate,
+            recorder: { reference: `Practitioner/${callerInfo.uuid}` },
+            performer: [{
+                actor: { reference: `Practitioner/${operatorId || callerInfo.uuid}` }
+            }],
+            location: { reference: `Location/${processingLocation}` },
+            note: notes ? [{ text: notes }] : [],
+            usedReference: equipmentUsed ? [{ display: equipmentUsed }] : [],
+            extension: [{
+                url: "processing-details",
+                valueString: JSON.stringify({
+                    inputQuantity,
+                    outputQuantity,
+                    temperature,
+                    duration,
+                    processingDetails,
+                    additionalParameters
+                })
+            }, {
+                url: "processing-images",
+                valueString: JSON.stringify(images || [])
+            }]
         };
 
-        // Create provenance record
+        // Create Provenance for processing
         const processingProvenance = {
             resourceType: "Provenance",
-            recordId,
-            target: [{ reference: batchId }],
+            id: `${recordId}-prov`,
+            target: [{ reference: `Procedure/${recordId}` }],
             occurredDateTime: processingDate,
             recorded: new Date(parseInt(timestamp) * 1000).toISOString(),
-            location: { reference: processingLocation },
+            location: { reference: `Location/${processingLocation}` },
             why: `Processing step - ${processingType}`,
-            activity: { coding: [{ code: "TRANSFORM", display: "Processing" }] },
+            activity: {
+                coding: [{
+                    code: "PROC",
+                    display: "Processing"
+                }]
+            },
             agent: [{
-                type: { coding: [{ code: "PROCESSOR", display: "Processing Facility" }] },
-                who: { reference: callerId }
+                type: {
+                    coding: [{
+                        code: "performer",
+                        display: "Performer"
+                    }]
+                },
+                who: { reference: `Practitioner/${callerInfo.uuid}` }
             }],
             entity: [{
                 role: "revision",
-                what: { reference: batchId }
-            }],
-            processing: processingValidation
+                what: { reference: `Specimen/${batchId}` }
+            }]
         };
 
-        // Update batch with processing step
-        batch.processingSteps = batch.processingSteps || [];
-        batch.processingSteps.push(processingStepEvent);
-        batch.status = `processed_${processingType}`;
+        // Add processing to batch bundle
+        batch.entry.push({
+            resource: procedure
+        }, {
+            resource: processingProvenance
+        });
 
-        // Update quantity and quality based on processing
-        if (outputMetrics.yield) {
-            batch.currentQuantity = outputMetrics.yield;
-        }
-        if (outputMetrics.moisture_after) {
-            batch.qualityMetrics = batch.qualityMetrics || {};
-            batch.qualityMetrics.moisture = outputMetrics.moisture_after;
-        }
+        // Update batch metadata
+        const metadata = JSON.parse(batch.extension.find(ext =>
+            ext.url === "batch-metadata").valueString);
+
+        metadata.lastProcessingDate = processingDate;
+        metadata.currentQuantity = outputQuantity || inputQuantity;
+        metadata.processingStage = processingType;
+
+        batch.extension.find(ext =>
+            ext.url === "batch-metadata").valueString =
+            JSON.stringify(metadata);
 
         await ctx.stub.putState(batchId, Buffer.from(stringify(batch)));
 
         return stringify({
             message: `Processing step ${processingType} completed for batch ${batchId}`,
-            processingEvent: processingStepEvent,
-            validation: processingValidation
+            processId: recordId,
+            procedure,
+            provenance: processingProvenance
         });
     }
 
-    // Transfer batch ownership
+    // Transfer batch ownership - Updated with better authorization
     async transferBatch(ctx, args) {
-        const { batchId, toEntityId, transferReason } = JSON.parse(args);
-        const { role, uuid: callerId } = this.getCallerAttributes(ctx);
+        const { batchId, toEntityId, transferReason, transferLocation, documents } = JSON.parse(args);
+        const callerInfo = this.getCallerAttributes(ctx);
 
         const batchJSON = await ctx.stub.getState(batchId);
         if (!batchJSON || batchJSON.length === 0) {
@@ -711,45 +835,95 @@ class ehrChainCode extends Contract {
         const recordId = this.generateRecordId(ctx, 'TRANSFER');
         const timestamp = ctx.stub.getTxTimestamp().seconds.low.toString();
 
+        // Create FHIR Provenance for transfer
         const transferProvenance = {
             resourceType: "Provenance",
-            recordId,
-            target: [{ reference: batchId }],
+            id: recordId,
+            target: [{ reference: `Specimen/${batchId}` }],
             occurredDateTime: new Date(parseInt(timestamp) * 1000).toISOString(),
             recorded: new Date(parseInt(timestamp) * 1000).toISOString(),
+            location: transferLocation ? { reference: `Location/${transferLocation}` } : undefined,
             why: transferReason,
-            activity: { coding: [{ code: "TRANSFER", display: "Transfer" }] },
+            activity: {
+                coding: [{
+                    code: "TRANSFER",
+                    display: "Transfer"
+                }]
+            },
             agent: [
                 {
-                    type: { coding: [{ code: "SENDER", display: "Sender" }] },
-                    who: { reference: callerId }
+                    type: {
+                        coding: [{
+                            code: "source",
+                            display: "Source"
+                        }]
+                    },
+                    who: { reference: `Practitioner/${callerInfo.uuid}` }
                 },
                 {
-                    type: { coding: [{ code: "RECEIVER", display: "Receiver" }] },
-                    who: { reference: toEntityId }
+                    type: {
+                        coding: [{
+                            code: "custodian",
+                            display: "Custodian"
+                        }]
+                    },
+                    who: { reference: `Practitioner/${toEntityId}` }
                 }
             ],
             entity: [{
                 role: "revision",
-                what: { reference: batchId }
-            }]
+                what: { reference: `Specimen/${batchId}` }
+            }],
+            extension: documents ? [{
+                url: "transfer-documents",
+                valueString: JSON.stringify(documents)
+            }] : []
         };
 
-        batch.currentOwner = toEntityId;
-        batch.status = "transferred";
-        batch.transferHistory = batch.transferHistory || [];
-        batch.transferHistory.push(transferProvenance);
+        // Add transfer to batch bundle
+        batch.entry.push({
+            resource: transferProvenance
+        });
+
+        // Update batch metadata
+        const metadata = JSON.parse(batch.extension.find(ext =>
+            ext.url === "batch-metadata").valueString);
+
+        metadata.currentOwner = toEntityId;
+        metadata.lastTransferDate = new Date(parseInt(timestamp) * 1000).toISOString();
+
+        batch.extension.find(ext =>
+            ext.url === "batch-metadata").valueString =
+            JSON.stringify(metadata);
 
         await ctx.stub.putState(batchId, Buffer.from(stringify(batch)));
-        return stringify({ message: `Batch ${batchId} transferred to ${toEntityId}`, recordId });
+
+        return stringify({
+            message: `Batch ${batchId} transferred to ${toEntityId}`,
+            transferId: recordId,
+            provenance: transferProvenance
+        });
     }
 
-    // Create medicine from batches
+    // Create medicine from batches - Updated with better authorization
     async createMedicine(ctx, args) {
-        const { medicineId, medicineName, batchIds, manufacturingDate, expiryDate } = JSON.parse(args);
-        const { role, uuid: callerId } = this.getCallerAttributes(ctx);
+        const {
+            medicineId,
+            medicineName,
+            batchIds,
+            manufacturingDate,
+            expiryDate,
+            dosageForm,
+            strength,
+            packagingDetails,
+            storageConditions,
+            batchNumber,
+            regulatoryApprovals
+        } = JSON.parse(args);
 
-        if (role !== 'manufacturer') {
+        const callerInfo = this.getCallerAttributes(ctx);
+
+        if (callerInfo.role !== 'manufacturer') {
             throw new Error('Only manufacturers can create medicines');
         }
 
@@ -759,52 +933,105 @@ class ehrChainCode extends Contract {
         }
 
         // Verify all batches exist
+        const batchDetails = [];
         for (const batchId of batchIds) {
             const batchJSON = await ctx.stub.getState(batchId);
             if (!batchJSON || batchJSON.length === 0) {
                 throw new Error(`Batch ${batchId} not found`);
             }
+            batchDetails.push(JSON.parse(batchJSON.toString()));
         }
 
         const recordId = this.generateRecordId(ctx, 'MED');
         const timestamp = ctx.stub.getTxTimestamp().seconds.low.toString();
 
-        const provenance = {
+        // Create FHIR Medication resource
+        const medication = {
+            resourceType: "Medication",
+            id: medicineId,
+            identifier: [{ value: medicineId }],
+            code: {
+                text: medicineName
+            },
+            status: "active",
+            manufacturer: { reference: `Organization/${callerInfo.uuid}` },
+            form: dosageForm ? { text: dosageForm } : undefined,
+            amount: strength ? { text: strength } : undefined,
+            batch: {
+                lotNumber: batchNumber || medicineId,
+                expirationDate: expiryDate
+            },
+            ingredient: batchIds.map(batchId => ({
+                itemReference: { reference: `Specimen/${batchId}` },
+                isActive: true
+            })),
+            extension: [{
+                url: "packaging",
+                valueString: JSON.stringify(packagingDetails)
+            }, {
+                url: "storage",
+                valueString: JSON.stringify(storageConditions)
+            }, {
+                url: "approvals",
+                valueString: JSON.stringify(regulatoryApprovals)
+            }]
+        };
+
+        // Create Provenance for manufacturing
+        const manufacturingProvenance = {
             resourceType: "Provenance",
-            recordId,
-            target: [{ reference: medicineId }],
+            id: `${recordId}-prov`,
+            target: [{ reference: `Medication/${medicineId}` }],
             occurredDateTime: manufacturingDate,
             recorded: new Date(parseInt(timestamp) * 1000).toISOString(),
-            why: "Medicine manufacturing",
-            activity: { coding: [{ code: "MANUFACTURE", display: "Manufacture" }] },
+            why: "Medicine manufacturing from herbal batches",
+            activity: {
+                coding: [{
+                    code: "MANU",
+                    display: "Manufacturing"
+                }]
+            },
             agent: [{
-                type: { coding: [{ code: "MANUFACTURER", display: "Manufacturer" }] },
-                who: { reference: callerId }
+                type: {
+                    coding: [{
+                        code: "manufacturer",
+                        display: "Manufacturer"
+                    }]
+                },
+                who: { reference: `Organization/${callerInfo.uuid}` }
             }],
             entity: batchIds.map(batchId => ({
                 role: "source",
-                what: { reference: batchId }
+                what: { reference: `Specimen/${batchId}` }
             }))
         };
 
-        // Generate unique QR code data
-        const qrData = {
-            medicineId,
-            verificationUrl: `https://your-domain.com/verify/${medicineId}`,
-            timestamp: parseInt(timestamp)
-        };
-
+        // Create bundle with all resources
         const medicine = {
-            medicineId,
-            medicineName,
-            batchIds,
-            manufacturingDate,
-            expiryDate,
-            manufacturerId: callerId,
-            status: "manufactured",
-            qrCode: qrData,
-            provenance,
-            timestamp
+            resourceType: "Bundle",
+            type: "collection",
+            id: medicineId,
+            timestamp: new Date(parseInt(timestamp) * 1000).toISOString(),
+            entry: [{
+                resource: medication
+            }, {
+                resource: manufacturingProvenance
+            }],
+            meta: {
+                tag: [{
+                    code: "manufactured",
+                    display: "Manufactured"
+                }]
+            },
+            extension: [{
+                url: "medicine-metadata",
+                valueString: JSON.stringify({
+                    manufacturerId: callerInfo.uuid,
+                    manufacturingDate,
+                    expiryDate,
+                    batchCount: batchIds.length
+                })
+            }]
         };
 
         await ctx.stub.putState(medicineId, Buffer.from(stringify(medicine)));
@@ -815,164 +1042,86 @@ class ehrChainCode extends Contract {
     async getConsumerInfo(ctx, args) {
         const { medicineId } = JSON.parse(args);
 
-        // Get medicine details
         const medicineJSON = await ctx.stub.getState(medicineId);
         if (!medicineJSON || medicineJSON.length === 0) {
             throw new Error(`Medicine ${medicineId} not found`);
         }
 
         const medicine = JSON.parse(medicineJSON.toString());
+        const medicationResource = medicine.entry.find(e => e.resource.resourceType === "Medication").resource;
+
         const consumerInfo = {
             medicine: {
-                id: medicine.medicineId,
-                name: medicine.medicineName,
-                manufacturingDate: medicine.manufacturingDate,
-                expiryDate: medicine.expiryDate,
-                manufacturer: medicine.manufacturerId
+                id: medicineId,
+                name: medicationResource.code.text,
+                manufacturer: medicationResource.manufacturer.reference,
+                expiryDate: medicationResource.batch.expirationDate,
+                form: medicationResource.form,
+                qrCode: JSON.parse(medicine.extension.find(ext =>
+                    ext.url === "qr-code").valueString)
             },
             ingredients: [],
             supplyChain: [],
-            certificates: [],
-            sustainability: {
-                farmsInvolved: new Set(),
-                locations: new Set(),
-                harvestDates: []
-            }
+            certificates: []
         };
 
-        // Get detailed info for each batch (ingredient)
-        for (const batchId of medicine.batchIds) {
+        // Get detailed info for each batch
+        for (const ingredient of medicationResource.ingredient) {
+            const batchId = ingredient.itemReference.reference.split('/')[1];
             const batchJSON = await ctx.stub.getState(batchId);
+
             if (batchJSON && batchJSON.length > 0) {
                 const batch = JSON.parse(batchJSON.toString());
+                const specimen = batch.entry.find(e => e.resource.resourceType === "Specimen").resource;
+                const metadata = JSON.parse(batch.extension.find(ext =>
+                    ext.url === "batch-metadata").valueString);
 
-                // Add ingredient info with validation results
+                // Add ingredient info
                 consumerInfo.ingredients.push({
-                    herbName: batch.herbName,
-                    quantity: batch.quantity,
-                    harvestDate: batch.harvestDate,
-                    farmLocation: batch.farmLocation,
-                    farmerId: batch.farmerId,
-                    batchId: batch.batchId,
-                    gpsCoordinates: batch.gpsCoordinates,
-                    qualityMetrics: batch.qualityMetrics,
-                    environmentalData: batch.environmentalData,
-                    validationResults: batch.validationResults,
-                    certifications: batch.certifications,
-                    qualityTests: batch.qualityTests,
-                    processingSteps: batch.processingSteps
+                    batchId: batchId,
+                    herbName: metadata.herbName,
+                    scientificName: metadata.scientificName,
+                    harvestLocation: specimen.subject.display,
+                    harvestDate: specimen.collection.collectedDateTime,
+                    quantity: specimen.collection.quantity,
+                    qualityStatus: metadata.qualityStatus,
+                    geoZone: metadata.geoZone
                 });
 
-                // Track sustainability data
-                consumerInfo.sustainability.farmsInvolved.add(batch.farmerId);
-                consumerInfo.sustainability.locations.add(batch.farmLocation);
-                consumerInfo.sustainability.harvestDates.push(batch.harvestDate);
+                // Extract all events from batch bundle
+                batch.entry.forEach(entry => {
+                    const resource = entry.resource;
 
-                // Add supply chain events with validation info
-                consumerInfo.supplyChain.push({
-                    event: "Harvest",
-                    date: batch.harvestDate,
-                    location: batch.farmLocation,
-                    coordinates: batch.gpsCoordinates,
-                    actor: batch.farmerId,
-                    details: `Harvested ${batch.quantity} of ${batch.herbName}`,
-                    validations: batch.validationResults,
-                    sustainabilityScore: batch.validationResults?.sustainability?.sustainabilityScore || 0,
-                    approvedZone: batch.provenance?.location?.approvedZone
+                    if (resource.resourceType === "Provenance") {
+                        consumerInfo.supplyChain.push({
+                            event: resource.activity.coding[0].display,
+                            date: resource.occurredDateTime,
+                            location: resource.location?.reference,
+                            reason: resource.why,
+                            agents: resource.agent.map(a => ({
+                                role: a.type.coding[0].display,
+                                who: a.who.reference
+                            }))
+                        });
+                    }
+
+                    if (resource.resourceType === "Observation") {
+                        consumerInfo.certificates.push({
+                            type: "Quality Test",
+                            testType: resource.code.text,
+                            date: resource.effectiveDateTime,
+                            status: resource.valueCodeableConcept.coding[0].display,
+                            laboratory: resource.performer[0].reference
+                        });
+                    }
                 });
-
-                // Add quality test events
-                if (batch.qualityTests) {
-                    batch.qualityTests.forEach(test => {
-                        consumerInfo.supplyChain.push({
-                            event: "Quality Test",
-                            date: test.testDate,
-                            location: test.laboratory.location,
-                            actor: test.laboratory.id,
-                            testType: test.testType,
-                            status: test.status,
-                            details: `${test.testType} test: ${test.status}`,
-                            results: test.results,
-                            certification: test.certification
-                        });
-                    });
-                }
-
-                // Add processing events
-                if (batch.processingSteps) {
-                    batch.processingSteps.forEach(process => {
-                        consumerInfo.supplyChain.push({
-                            event: "Processing",
-                            date: process.processingDate,
-                            location: process.processor.location,
-                            actor: process.processor.id,
-                            processingType: process.processingType,
-                            status: process.status,
-                            details: `${process.processingType}: ${process.status}`,
-                            conditions: process.conditions,
-                            equipment: process.equipment
-                        });
-                    });
-                }
-
-                // Add transfer events if they exist
-                if (batch.transferHistory) {
-                    batch.transferHistory.forEach(transfer => {
-                        consumerInfo.supplyChain.push({
-                            event: "Transfer",
-                            date: transfer.occurredDateTime,
-                            from: transfer.agent.find(a => a.type.coding[0].code === "SENDER")?.who.reference,
-                            to: transfer.agent.find(a => a.type.coding[0].code === "RECEIVER")?.who.reference,
-                            reason: transfer.why,
-                            details: `Batch ${batchId} transferred`
-                        });
-                    });
-                }
-
-                // Add certificates from batch
-                if (batch.certifications) {
-                    consumerInfo.certificates.push({
-                        batchId: batchId,
-                        herbName: batch.herbName,
-                        certifications: batch.certifications
-                    });
-                }
             }
-        }
-
-        // Add manufacturing event
-        consumerInfo.supplyChain.push({
-            event: "Manufacturing",
-            date: medicine.manufacturingDate,
-            location: "Manufacturing facility",
-            actor: medicine.manufacturerId,
-            details: `Produced ${medicine.medicineName} using ${medicine.batchIds.length} herb batches`
-        });
-
-        // Convert sets to arrays for JSON response
-        consumerInfo.sustainability.farmsInvolved = Array.from(consumerInfo.sustainability.farmsInvolved);
-        consumerInfo.sustainability.locations = Array.from(consumerInfo.sustainability.locations);
-
-        // Calculate overall sustainability metrics
-        consumerInfo.sustainability.averageSustainabilityScore = 0;
-        let totalScore = 0;
-        let scoreCount = 0;
-
-        consumerInfo.ingredients.forEach(ingredient => {
-            if (ingredient.validationResults?.sustainability?.sustainabilityScore) {
-                totalScore += ingredient.validationResults.sustainability.sustainabilityScore;
-                scoreCount++;
-            }
-        });
-
-        if (scoreCount > 0) {
-            consumerInfo.sustainability.averageSustainabilityScore = Math.round(totalScore / scoreCount);
         }
 
         // Sort supply chain by date
         consumerInfo.supplyChain.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-        return JSON.stringify(consumerInfo);
+        return stringify(consumerInfo);
     }
 
     // Get batch details
@@ -999,21 +1148,47 @@ class ehrChainCode extends Contract {
         return medicineJSON.toString();
     }
 
-    // Get all batches by farmer
+    // Get all batches by farmer - Updated with better authorization
     async getBatchesByFarmer(ctx, args) {
         const { farmerId } = JSON.parse(args);
         const iterator = await ctx.stub.getStateByRange('', '');
         const results = [];
 
-        for await (const res of iterator) {
-            try {
-                const record = JSON.parse(res.value.toString('utf8'));
-                if (record.farmerId === farmerId) {
-                    results.push(record);
+        try {
+            let result = await iterator.next();
+            while (!result.done) {
+                if (result.value && result.value.value) {
+                    try {
+                        const record = JSON.parse(result.value.value.toString('utf8'));
+
+                        // Check if it's a batch bundle and belongs to the farmer
+                        if (record.resourceType === "Bundle" && record.entry) {
+                            const metadata = record.extension?.find(ext =>
+                                ext.url === "batch-metadata");
+
+                            if (metadata) {
+                                const metadataObj = JSON.parse(metadata.valueString);
+                                if (metadataObj.farmerId === farmerId) {
+                                    results.push({
+                                        batchId: record.id,
+                                        herbName: metadataObj.herbName,
+                                        scientificName: metadataObj.scientificName,
+                                        qualityStatus: metadataObj.qualityStatus,
+                                        createdAt: metadataObj.createdAt,
+                                        currentQuantity: metadataObj.currentQuantity,
+                                        geoZone: metadataObj.geoZone
+                                    });
+                                }
+                            }
+                        }
+                    } catch (err) {
+                        // Skip non-JSON or malformed records
+                    }
                 }
-            } catch (err) {
-                // Skip non-JSON records
+                result = await iterator.next();
             }
+        } finally {
+            await iterator.close();
         }
 
         return JSON.stringify(results);
@@ -1029,43 +1204,76 @@ class ehrChainCode extends Contract {
         }
 
         const item = JSON.parse(itemJSON.toString());
-        const supplyChain = [item];
+        const supplyChain = {
+            mainItem: item,
+            sourceBatches: [],
+            timeline: []
+        };
 
         // If it's a medicine, get source batches
-        if (item.batchIds) {
-            for (const batchId of item.batchIds) {
-                const batchJSON = await ctx.stub.getState(batchId);
-                if (batchJSON && batchJSON.length > 0) {
-                    supplyChain.push(JSON.parse(batchJSON.toString()));
+        if (item.resourceType === "Bundle" && item.entry) {
+            const medication = item.entry.find(e => e.resource.resourceType === "Medication");
+
+            if (medication) {
+                for (const ingredient of medication.resource.ingredient) {
+                    const batchId = ingredient.itemReference.reference.split('/')[1];
+                    const batchJSON = await ctx.stub.getState(batchId);
+
+                    if (batchJSON && batchJSON.length > 0) {
+                        const batch = JSON.parse(batchJSON.toString());
+                        supplyChain.sourceBatches.push(batch);
+
+                        // Extract timeline events from batch
+                        batch.entry.forEach(entry => {
+                            if (entry.resource.resourceType === "Provenance") {
+                                supplyChain.timeline.push({
+                                    date: entry.resource.occurredDateTime,
+                                    event: entry.resource.activity.coding[0].display,
+                                    itemId: batchId,
+                                    location: entry.resource.location?.reference
+                                });
+                            }
+                        });
+                    }
                 }
             }
         }
 
+        // Sort timeline by date
+        supplyChain.timeline.sort((a, b) => new Date(a.date) - new Date(b.date));
+
         return JSON.stringify(supplyChain);
     }
 
-    // Fetch all ledger data
+    // Fetch all ledger data - Updated with better authorization
     async fetchLedger(ctx) {
-        const { role, uuid: callerId } = this.getCallerAttributes(ctx);
+        const callerInfo = this.getCallerAttributes(ctx);
 
-        if (role !== 'regulator') {
+        if (callerInfo.role !== 'regulator') {
             throw new Error('Only regulator can fetch ledger');
         }
 
         const allResults = [];
         const iterator = await ctx.stub.getStateByRange('', '');
-        let result = await iterator.next();
-        while (!result.done) {
-            const strValue = Buffer.from(result.value.value.toString()).toString('utf8');
-            let record;
-            try {
-                record = JSON.parse(strValue);
-            } catch (err) {
-                record = strValue;
+
+        try {
+            let result = await iterator.next();
+            while (!result.done) {
+                if (result.value && result.value.value) {
+                    const strValue = result.value.value.toString('utf8');
+                    try {
+                        const record = JSON.parse(strValue);
+                        allResults.push(record);
+                    } catch (err) {
+                        allResults.push({ rawData: strValue });
+                    }
+                }
+                result = await iterator.next();
             }
-            allResults.push(record);
-            result = await iterator.next();
+        } finally {
+            await iterator.close();
         }
+
         return stringify(allResults);
     }
 
@@ -1075,34 +1283,34 @@ class ehrChainCode extends Contract {
         const iterator = await ctx.stub.getHistoryForKey(assetId);
         const results = [];
 
-        while (true) {
-            const res = await iterator.next();
+        try {
+            let result = await iterator.next();
+            while (!result.done) {
+                if (result.value) {
+                    const tx = {
+                        txId: result.value.txId,
+                        timestamp: result.value.timestamp ?
+                            new Date(result.value.timestamp.seconds.low * 1000).toISOString() : null,
+                        isDelete: result.value.isDelete
+                    };
 
-            if (res.value) {
-                const tx = {
-                    txId: res.value.txId,
-                    timestamp: res.value.timestamp ? res.value.timestamp.toISOString() : null,
-                    isDelete: res.value.isDelete,
-                };
-
-                try {
-                    if (res.value.value && res.value.value.length > 0 && !res.value.isDelete) {
-                        tx.asset = JSON.parse(res.value.value.toString('utf8'));
+                    if (result.value.value && result.value.value.length > 0 && !result.value.isDelete) {
+                        try {
+                            tx.data = JSON.parse(result.value.value.toString('utf8'));
+                        } catch (err) {
+                            tx.data = result.value.value.toString('utf8');
+                        }
                     }
-                } catch (err) {
-                    tx.asset = null;
+
+                    results.push(tx);
                 }
-
-                results.push(tx);
+                result = await iterator.next();
             }
-
-            if (res.done) {
-                await iterator.close();
-                break;
-            }
+        } finally {
+            await iterator.close();
         }
 
-        return results;
+        return JSON.stringify(results);
     }
 }
 
