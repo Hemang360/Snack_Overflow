@@ -2,7 +2,10 @@
 import android.Manifest
 import android.app.DatePickerDialog
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.widget.DatePicker
@@ -48,6 +51,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File
+import java.io.FileOutputStream
 import java.util.Calendar
 import java.util.UUID
 import io.github.jan.supabase.createSupabaseClient
@@ -136,6 +140,39 @@ private fun getFileName(context: Context, uri: Uri): String? {
     }
     return fileName
 }
+
+// --- Helper function to share the QR code image ---
+private fun shareQrCode(context: Context) {
+    val drawable = ContextCompat.getDrawable(context, R.drawable.qr)
+    val bitmap = (drawable as BitmapDrawable).bitmap
+
+    try {
+        val cachePath = File(context.cacheDir, "images")
+        cachePath.mkdirs()
+        val file = File(cachePath, "qr_code_to_share.png")
+        val fileOutputStream = FileOutputStream(file)
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, fileOutputStream)
+        fileOutputStream.close()
+
+        val imageUri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.provider",
+            file
+        )
+
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "image/png"
+            putExtra(Intent.EXTRA_STREAM, imageUri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(shareIntent, "Share QR Code via"))
+
+    } catch (e: Exception) {
+        Toast.makeText(context, "Failed to share QR code.", Toast.LENGTH_SHORT).show()
+        android.util.Log.e("ShareQrCode", "Error sharing QR code", e)
+    }
+}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -297,11 +334,19 @@ fun DataCollectionScreen(navController: NavController) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    // Make sure you have a 'qr.png' or similar in your drawable resources
                     Image(painter = painterResource(id = R.drawable.qr), contentDescription = "Generated QR Code")
                 }
             },
-            confirmButton = { TextButton(onClick = { showQrCodeDialog = false; navController.popBackStack() }) { Text("Done") } }
+            confirmButton = {
+                TextButton(onClick = { showQrCodeDialog = false; navController.popBackStack() }) {
+                    Text("Done")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { shareQrCode(context) }) {
+                    Text("Share")
+                }
+            }
         )
     }
 
