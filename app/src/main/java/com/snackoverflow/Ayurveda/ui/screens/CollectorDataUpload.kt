@@ -3,8 +3,6 @@ import android.Manifest
 import android.app.DatePickerDialog
 import android.content.Context
 import android.content.pm.PackageManager
-import android.net.Uri
-import android.provider.OpenableColumns
 import android.widget.DatePicker
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -21,23 +19,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
 import androidx.navigation.NavController
-import coil.compose.rememberAsyncImagePainter
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.snackoverflow.Ayurveda.R // <-- Ensure this path is correct for your project
 import com.snackoverflow.Ayurveda.ui.navigation.Screen // <-- Ensure this path is correct
-import io.github.jan.supabase.createSupabaseClient
-import io.github.jan.supabase.storage.Storage
-import io.github.jan.supabase.storage.storage
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
@@ -48,18 +40,9 @@ import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import java.io.File
 import java.util.Calendar
-import java.util.UUID
 
-// --- Data Models ---
-@Serializable
-data class LocationData(
-    val latitude: Double,
-    val longitude: Double
-)
-
-// --- Data classes for request ---
+// --- Updated Data classes for request to match the target JSON format ---
 @Serializable
 data class GPSCoordinates(
     val latitude: Double,
@@ -67,24 +50,19 @@ data class GPSCoordinates(
 )
 
 @Serializable
-data class EnvironmentalData(
-    val temperature: String,
-    val humidity: String,
-    val soilType: String
-)
-
-@Serializable
 data class HerbBatchRequest(
-    val userId: String,
     val batchId: String,
     val herbName: String,
+    val scientificName: String,
     val harvestDate: String,
     val farmLocation: String,
-    val quantity: String,
+    val quantity: Double, // Changed to Double
+    val unit: String,
     val gpsCoordinates: GPSCoordinates,
     val collectorId: String,
-    val environmentalData: EnvironmentalData,
-    val imageUrl: String // Field for the Supabase image URL
+    val cultivationMethod: String,
+    val harvestMethod: String,
+    val plantPart: String
 )
 
 // --- Helper Function for Safe Location Access ---
@@ -105,61 +83,25 @@ private fun requestCurrentLocation(
     }
 }
 
-// --- Helper function to create a temporary URI for the camera ---
-private fun createImageUri(context: Context): Uri {
-    val imageFile = File.createTempFile(
-        "camera_photo_",
-        ".jpg",
-        context.cacheDir
-    )
-    return FileProvider.getUriForFile(
-        context,
-        "${context.packageName}.provider",
-        imageFile
-    )
-}
-
-// --- CORRECTED Helper function to get file name from URI ---
-private fun getFileName(context: Context, uri: Uri): String? {
-    var fileName: String? = null
-    if (uri.scheme == "content") {
-        val cursor = context.contentResolver.query(uri, null, null, null, null)
-        cursor?.use {
-            if (it.moveToFirst()) {
-                val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (nameIndex != -1) {
-                    fileName = it.getString(nameIndex)
-                }
-            }
-        }
-    }
-    if (fileName == null) {
-        uri.path?.let { path ->
-            val cut = path.lastIndexOf('/')
-            fileName = if (cut != -1) {
-                path.substring(cut + 1)
-            } else {
-                path
-            }
-        }
-    }
-    return fileName
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DataCollectionScreen(navController: NavController) {
-    // --- State Management ---
-    var species by remember { mutableStateOf("") }
+    // --- State Management for all form fields ---
+    var herbName by remember { mutableStateOf("") }
+    var scientificName by remember { mutableStateOf("") }
     var collectorId by remember { mutableStateOf("") }
     var latitude by remember { mutableStateOf("") }
     var longitude by remember { mutableStateOf("") }
     var quantity by remember { mutableStateOf("") }
-    var collectionDate by remember { mutableStateOf("Select Collection Date") }
-    var qualityNotes by remember { mutableStateOf("") }
-    var imageUri by remember { mutableStateOf<Uri?>(null) }
+    var unit by remember { mutableStateOf("") }
+    var harvestDate by remember { mutableStateOf("Select Harvest Date") }
+    var farmLocation by remember { mutableStateOf("") }
+    var cultivationMethod by remember { mutableStateOf("") }
+    var harvestMethod by remember { mutableStateOf("") }
+    var plantPart by remember { mutableStateOf("") }
+
     var isLoading by remember { mutableStateOf(false) }
-    var showImageSourceDialog by remember { mutableStateOf(false) }
     var showQrCodeDialog by remember { mutableStateOf(false) }
 
     // --- Context and Scopes ---
@@ -168,16 +110,6 @@ fun DataCollectionScreen(navController: NavController) {
 
     // --- Ktor HTTP Client for your backend ---
     val client = remember { HttpClient(CIO) { install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) } } }
-
-    // --- Supabase Client Initialization ---
-    val supabase = remember {
-        createSupabaseClient(
-            supabaseUrl = "https://plgikesmsrshyeflevnd.supabase.co", // 👈 Paste your Project URL here
-            supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsZ2lrZXNtc3JzaHllZmxldm5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzOTA1MTgsImV4cCI6MjA3Mzk2NjUxOH0.RrjV-MgiaRqV_328zUsX_djCxjKGvvCe_pjBlgGk_bM" // 👈 Paste your anon (public) key here
-        ) {
-            install(Storage)
-        }
-    }
 
     // --- Location Services ---
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
@@ -196,31 +128,24 @@ fun DataCollectionScreen(navController: NavController) {
         }
     )
 
-    // --- ActivityResultLaunchers for gallery and camera ---
-    var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
-    val imagePickerLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? -> imageUri = uri }
-    val cameraLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.TakePicture()) { success: Boolean -> if (success) { imageUri = tempCameraUri } }
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
-        if (isGranted) {
-            val newUri = createImageUri(context)
-            tempCameraUri = newUri
-            cameraLauncher.launch(newUri)
-        } else {
-            Toast.makeText(context, "Camera permission denied", Toast.LENGTH_SHORT).show()
-        }
-    }
-
     // --- Form Validation ---
-    val isFormValid by remember(species, collectorId, latitude, longitude, quantity, collectionDate, qualityNotes, imageUri) {
+    val isFormValid by remember(
+        herbName, scientificName, collectorId, latitude, longitude, quantity,
+        unit, harvestDate, farmLocation, cultivationMethod, harvestMethod, plantPart
+    ) {
         derivedStateOf {
-            species.isNotBlank() &&
+            herbName.isNotBlank() &&
+                    scientificName.isNotBlank() &&
                     collectorId.isNotBlank() &&
                     latitude.isNotBlank() &&
                     longitude.isNotBlank() &&
-                    quantity.isNotBlank() && quantity.toDoubleOrNull() != null &&
-                    collectionDate != "Select Collection Date" &&
-                    qualityNotes.isNotBlank() &&
-                    imageUri != null
+                    quantity.toDoubleOrNull() != null &&
+                    unit.isNotBlank() &&
+                    harvestDate != "Select Harvest Date" &&
+                    farmLocation.isNotBlank() &&
+                    cultivationMethod.isNotBlank() &&
+                    harvestMethod.isNotBlank() &&
+                    plantPart.isNotBlank()
         }
     }
 
@@ -228,37 +153,24 @@ fun DataCollectionScreen(navController: NavController) {
     val calendar = Calendar.getInstance()
     val datePickerDialog = DatePickerDialog(context,
         { _: DatePicker, year: Int, month: Int, day: Int ->
-            collectionDate = "$year-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}"
+            harvestDate = "$year-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}"
         },
         calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)
     )
 
-    // --- Dialogs ---
-    if (showImageSourceDialog) {
-        AlertDialog(
-            onDismissRequest = { showImageSourceDialog = false },
-            title = { Text("Choose Image Source") },
-            text = { Text("Select a picture from the gallery or take a new one with your camera.") },
-            confirmButton = { TextButton(onClick = { showImageSourceDialog = false; imagePickerLauncher.launch("image/*") }) { Text("Gallery") } },
-            dismissButton = {
-                TextButton(onClick = {
-                    showImageSourceDialog = false
-                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-                        val newUri = createImageUri(context); tempCameraUri = newUri; cameraLauncher.launch(newUri)
-                    } else {
-                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                    }
-                }) { Text("Camera") }
-            }
-        )
-    }
+    // --- QR Code Dialog ---
     if (showQrCodeDialog) {
         AlertDialog(
             onDismissRequest = { showQrCodeDialog = false; navController.popBackStack() },
             title = { Text("Submission Successful!") },
             text = {
-                Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                    Image(painter = painterResource(id = R.drawable.qr), contentDescription = "Collection Event QR Code")
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    // Make sure you have a 'qr.png' or similar in your drawable resources
+                    Image(painter = painterResource(id = R.drawable.qr), contentDescription = "Generated QR Code")
                 }
             },
             confirmButton = { TextButton(onClick = { showQrCodeDialog = false; navController.popBackStack() }) { Text("Done") } }
@@ -270,7 +182,7 @@ fun DataCollectionScreen(navController: NavController) {
             TopAppBar(
                 title = { Text("Herb Data Collection") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.navigate(route = Screen.Dashboard.route) }) {
+                    IconButton(onClick = { navController.popBackStack() }) { // Corrected navigation
                         Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 }
@@ -279,12 +191,35 @@ fun DataCollectionScreen(navController: NavController) {
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier.padding(paddingValues).padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp), // Adjusted spacing
             contentPadding = PaddingValues(vertical = 16.dp)
         ) {
-            // --- Form Fields ---
-            item { OutlinedTextField(value = species, onValueChange = { species = it }, label = { Text("Species") }, modifier = Modifier.fillMaxWidth()) }
-            item { OutlinedTextField(value = collectorId, onValueChange = { collectorId = it }, label = { Text("Full Name") }, modifier = Modifier.fillMaxWidth()) }
+            // --- NEW Form Fields ---
+            item { OutlinedTextField(value = herbName, onValueChange = { herbName = it }, label = { Text("Herb Name") }, modifier = Modifier.fillMaxWidth()) }
+            item { OutlinedTextField(value = scientificName, onValueChange = { scientificName = it }, label = { Text("Scientific Name") }, modifier = Modifier.fillMaxWidth()) }
+            item { OutlinedTextField(value = collectorId, onValueChange = { collectorId = it }, label = { Text("Collector ID") }, modifier = Modifier.fillMaxWidth()) }
+            item { OutlinedTextField(value = farmLocation, onValueChange = { farmLocation = it }, label = { Text("Farm Location") }, modifier = Modifier.fillMaxWidth()) }
+
+            // --- Quantity and Unit on the same row ---
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = quantity,
+                        onValueChange = { quantity = it },
+                        label = { Text("Quantity") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = unit,
+                        onValueChange = { unit = it },
+                        label = { Text("Unit (e.g., kg)") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            // --- Location Fields ---
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = {
@@ -303,71 +238,59 @@ fun DataCollectionScreen(navController: NavController) {
                     }
                 }
             }
-            item { OutlinedTextField(value = quantity, onValueChange = { quantity = it }, label = { Text("Quantity") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth()) }
-            item { OutlinedButton(onClick = { datePickerDialog.show() }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp)) { Text(text = collectionDate, modifier = Modifier.padding(vertical = 8.dp)) } }
-            item { OutlinedTextField(value = qualityNotes, onValueChange = { qualityNotes = it }, label = { Text("Quality Notes") }, modifier = Modifier.fillMaxWidth().height(120.dp)) }
 
-            // --- Image picker and preview section ---
-            item {
-                Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    imageUri?.let {
-                        Text("Image Preview:", style = MaterialTheme.typography.bodyLarge)
-                        Image(
-                            painter = rememberAsyncImagePainter(model = it), contentDescription = "Selected Herb Image",
-                            modifier = Modifier.fillMaxWidth().height(200.dp), contentScale = ContentScale.Crop
-                        )
-                    }
-                    Button(onClick = { showImageSourceDialog = true }) { Text(if (imageUri == null) "Select Herb Image" else "Change Herb Image") }
-                }
-            }
+            // --- Date Picker Button ---
+            item { OutlinedButton(onClick = { datePickerDialog.show() }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp)) { Text(text = harvestDate, modifier = Modifier.padding(vertical = 8.dp)) } }
 
-            // --- Submit Button (with Supabase Logic) ---
+            // --- More NEW Fields ---
+            item { OutlinedTextField(value = cultivationMethod, onValueChange = { cultivationMethod = it }, label = { Text("Cultivation Method") }, modifier = Modifier.fillMaxWidth()) }
+            item { OutlinedTextField(value = harvestMethod, onValueChange = { harvestMethod = it }, label = { Text("Harvest Method") }, modifier = Modifier.fillMaxWidth()) }
+            item { OutlinedTextField(value = plantPart, onValueChange = { plantPart = it }, label = { Text("Plant Part Used") }, modifier = Modifier.fillMaxWidth()) }
+
+
+            // --- Submit Button ---
             item {
+                Spacer(modifier = Modifier.height(8.dp)) // Add some space before the button
                 Button(
                     onClick = {
-                        val currentImageUri = imageUri ?: return@Button
-
                         scope.launch {
                             isLoading = true
                             try {
-                                // --- STEP 1: UPLOAD IMAGE TO SUPABASE STORAGE ---
-                                val fileBytes = context.contentResolver.openInputStream(currentImageUri)?.use { it.readBytes() }
-                                if (fileBytes == null) {
-                                    Toast.makeText(context, "Could not read image file.", Toast.LENGTH_SHORT).show()
-                                    isLoading = false
-                                    return@launch
-                                }
-                                val path = "${UUID.randomUUID()}.jpg"
-                                supabase.storage["herb_images"].upload(path, fileBytes)
-                                val uploadedImageUrl = supabase.storage["herb_images"].publicUrl(path)
+                                // NOTE: The JWT token should be securely stored and retrieved, not hardcoded.
+                                val jwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmYXJtZXJfMTc1ODM5OTc3MzY3Nl8xOWIxNThiMyIsInJvbGUiOiJmYXJtZXIiLCJlbWFpbCI6InNoYW5raGFuaWxzYWhhQGdtYWlsLmNvbSIsImRldmljZUluZm8iOnsidHlwZSI6IndlYiIsInVzZXJBZ2VudCI6ImN1cmwvOC4xNi4wIiwiaXAiOiI6OjEiLCJ0aW1lc3RhbXAiOiIyMDI1LTA5LTIwVDIwOjM1OjE5LjQwOFoifSwidHlwZSI6ImFjY2VzcyIsImlhdCI6MTc1ODQwMDUxOSwiZXhwIjoxNzU4NDAxNDE5LCJhdWQiOiJheXVydmVkYS11c2VycyIsImlzcyI6ImF5dXJ2ZWRhLXN1cHBseS1jaGFpbiJ9.h3hJro20fhpjFbjtJ7-9XwY0gEIo6TeG6fhkz4myti0"
 
-                                // --- STEP 2: SUBMIT DATA (WITH IMAGE URL) TO YOUR SERVER ---
-                                val jwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFlMzM3MzNmLTQ3NWMtNDE4MS1iYmVhLThlOTVmMmE2MDE3YyIsInVzZXJuYW1lIjoieG9ueW5peCIsInJvbGUiOiJjb2xsZWN0b3IiLCJwZXJtaXNzaW9ucyI6WyJjcmVhdGU6Y29sbGVjdGlvbiIsInZpZXc6Y29sbGVjdGlvbiJdLCJpYXQiOjE3NTgxOTA1MjYsImV4cCI6MTc1ODI3NjkyNn0.1g1oiGEY16uTjghODAEdxk73cCc1NGsb7362Hv37LjA" // Replace with your actual token
+                                // Construct the request body from the form state
                                 val herbBatchRequest = HerbBatchRequest(
-                                    userId = collectorId,
-                                    batchId = "BATCH-${System.currentTimeMillis()}",
-                                    herbName = species,
-                                    harvestDate = collectionDate,
-                                    farmLocation = "Wayanad, Kerala",
-                                    quantity = quantity,
-                                    gpsCoordinates = GPSCoordinates(latitude.toDouble(), longitude.toDouble()),
+                                    batchId = "BATCH-${System.currentTimeMillis()}", // Generate a unique batch ID
+                                    herbName = herbName,
+                                    scientificName = scientificName,
+                                    harvestDate = harvestDate,
+                                    farmLocation = farmLocation,
+                                    quantity = quantity.toDoubleOrNull() ?: 0.0,
+                                    unit = unit,
+                                    gpsCoordinates = GPSCoordinates(
+                                        latitude.toDoubleOrNull() ?: 0.0,
+                                        longitude.toDoubleOrNull() ?: 0.0
+                                    ),
                                     collectorId = collectorId,
-                                    environmentalData = EnvironmentalData("28°C", "75%", "Red laterite soil"),
-                                    imageUrl = uploadedImageUrl
+                                    cultivationMethod = cultivationMethod,
+                                    harvestMethod = harvestMethod,
+                                    plantPart = plantPart
                                 )
 
-                                val dataSubmitResponse = client.post("https://4fefd4396559.ngrok-free.app/createHerbBatch") {
+                                // Send the POST request to your backend
+                                val response = client.post("https://4fefd4396559.ngrok-free.app/createHerbBatch") {
                                     header(HttpHeaders.Authorization, "Bearer $jwtToken")
                                     contentType(ContentType.Application.Json)
                                     setBody(herbBatchRequest)
                                 }
 
-                                if (dataSubmitResponse.status.isSuccess()) {
+                                if (response.status.isSuccess()) {
                                     showQrCodeDialog = true
                                 } else {
-                                    val errorBody = dataSubmitResponse.body<String>()
-                                    android.util.Log.e("DataCollection", "API Error ${dataSubmitResponse.status.value}: $errorBody")
-                                    Toast.makeText(context, "API Error: ${dataSubmitResponse.status.value}", Toast.LENGTH_LONG).show()
+                                    val errorBody = response.body<String>()
+                                    android.util.Log.e("DataCollection", "API Error ${response.status.value}: $errorBody")
+                                    Toast.makeText(context, "API Error: ${response.status.value}", Toast.LENGTH_LONG).show()
                                 }
 
                             } catch (e: Exception) {
