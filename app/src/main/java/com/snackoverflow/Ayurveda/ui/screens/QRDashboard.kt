@@ -72,21 +72,7 @@ fun HerbActionScreen(navController: NavController) {
                 fontSize = 16.sp,
                 color = secondaryText
             )
-
-            Spacer(modifier = Modifier.height(48.dp))
-
-            // --- Replaced Buttons with beautiful, descriptive Cards ---
-            ActionCard(
-                title = "View Herb Data",
-                description = "Trace a herb's journey on the blockchain.",
-                icon = Icons.AutoMirrored.Filled.Subject, // A more descriptive icon
-                onClick = {
-                    navController.navigate(Screen.Record.route)
-                }
-            )
-
             Spacer(modifier = Modifier.height(20.dp))
-
             ActionCard(
                 title = "Enter New Herb Details",
                 description = "Add a new collection or lab report.",
@@ -95,7 +81,6 @@ fun HerbActionScreen(navController: NavController) {
                     navController.navigate(Screen.CollectorReport.route)
                 }
             )
-
             Spacer(modifier = Modifier.height(20.dp))
 
             ActionCard(
