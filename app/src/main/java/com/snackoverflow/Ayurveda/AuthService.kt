@@ -29,8 +29,9 @@ data class RegisterRequest( // what your SignUpScreen creates
 
 @Serializable
 data class FarmerRegisterRequest(
-    val userId: String,
-    val farmerId: String,
+    val email: String,
+    val password: String,
+    val confirmPassword: String,
     val name: String,
     val farmLocation: String
 )
@@ -67,13 +68,14 @@ object AuthService {
     }
 
     // adjust IP for emulator/physical device
-    private const val BASE_URL = "http://192.168.1.8:5000"
+    private const val BASE_URL = "https://4fefd4396559.ngrok-free.app"
 
     suspend fun loginUser(request: LoginRequest): HttpResponse {
-        return client.post("$BASE_URL/login") {      // updated endpoint
+        return client.post("$BASE_URL/auth/login") {      // updated endpoint
             contentType(ContentType.Application.Json)
             setBody(mapOf(
-                "userId" to request.username          // backend expects userId
+                "email" to request.username,          // using email instead of userId
+                "password" to request.password         // now sending password too
             ))
         }
     }
@@ -86,12 +88,13 @@ object AuthService {
         return when (request.organizationType.lowercase()) {
             "farmer", "collector" -> {   // <-- handle collector as farmer
                 val farmerReq = FarmerRegisterRequest(
-                    userId = "Regulator01",
-                    farmerId = request.username,
+                    email = request.email,
+                    password = request.password,
+                    confirmPassword = request.password,
                     name = request.fullName,
-                    farmLocation = "Wayanad, Kerala"    // TODO: collect from UI
+                    farmLocation = "Bengaluru, Karnataka"
                 )
-                client.post("$BASE_URL/onboardFarmer") {
+                client.post("$BASE_URL/auth/register/farmer") {
                     contentType(ContentType.Application.Json)
                     setBody(farmerReq)
                 }

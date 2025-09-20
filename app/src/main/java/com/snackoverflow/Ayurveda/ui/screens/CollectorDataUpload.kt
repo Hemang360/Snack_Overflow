@@ -356,7 +356,7 @@ fun DataCollectionScreen(navController: NavController) {
                                     imageUrl = uploadedImageUrl
                                 )
 
-                                val dataSubmitResponse = client.post("http://192.168.1.8:5000/createHerbBatch") {
+                                val dataSubmitResponse = client.post("https://4fefd4396559.ngrok-free.app/createHerbBatch") {
                                     header(HttpHeaders.Authorization, "Bearer $jwtToken")
                                     contentType(ContentType.Application.Json)
                                     setBody(herbBatchRequest)
