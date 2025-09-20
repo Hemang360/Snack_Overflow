@@ -25,6 +25,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
+import com.snackoverflow.Ayurveda.TokenManager
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -107,6 +108,7 @@ fun DataCollectionScreen(navController: NavController) {
     // --- Context and Scopes ---
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val tokenManager = remember { TokenManager(context) }
 
     // --- Ktor HTTP Client for your backend ---
     val client = remember { HttpClient(CIO) { install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) } } }
@@ -256,8 +258,11 @@ fun DataCollectionScreen(navController: NavController) {
                         scope.launch {
                             isLoading = true
                             try {
-                                // NOTE: The JWT token should be securely stored and retrieved, not hardcoded.
-                                val jwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmYXJtZXJfMTc1ODM5OTc3MzY3Nl8xOWIxNThiMyIsInJvbGUiOiJmYXJtZXIiLCJlbWFpbCI6InNoYW5raGFuaWxzYWhhQGdtYWlsLmNvbSIsImRldmljZUluZm8iOnsidHlwZSI6IndlYiIsInVzZXJBZ2VudCI6ImN1cmwvOC4xNi4wIiwiaXAiOiI6OjEiLCJ0aW1lc3RhbXAiOiIyMDI1LTA5LTIwVDIwOjM1OjE5LjQwOFoifSwidHlwZSI6ImFjY2VzcyIsImlhdCI6MTc1ODQwMDUxOSwiZXhwIjoxNzU4NDAxNDE5LCJhdWQiOiJheXVydmVkYS11c2VycyIsImlzcyI6ImF5dXJ2ZWRhLXN1cHBseS1jaGFpbiJ9.h3hJro20fhpjFbjtJ7-9XwY0gEIo6TeG6fhkz4myti0"
+                                // Hardcoded JWT token for testing
+                                val jwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmYXJtZXJfMTc1ODM5OTc3MzY3Nl8xOWIxNThiMyIsInJvbGUiOiJmYXJtZXIiLCJlbWFpbCI6InNoYW5raGFuaWxzYWhhQGdtYWlsLmNvbSIsImRldmljZUluZm8iOnsidHlwZSI6IndlYiIsInVzZXJBZ2VudCI6ImN1cmwvOC4xNi4wIiwiaXAiOiI6OjEiLCJ0aW1lc3RhbXAiOiIyMDI1LTA5LTIwVDIwOjU1OjUyLjUyNFoifSwidHlwZSI6ImFjY2VzcyIsImlhdCI6MTc1ODQwMTc1MiwiZXhwIjoxNzU4NDAyNjUyLCJhdWQiOiJheXVydmVkYS11c2VycyIsImlzcyI6ImF5dXJ2ZWRhLXN1cHBseS1jaGFpbiJ9.zJes8dgsvX3pH2RK-HUXTGAVf4avyNR28QHZfada4vw"
+                                
+                                // Debug: Log the token (first 50 characters for security)
+                                android.util.Log.d("DataCollection", "Using hardcoded JWT token: ${jwtToken.take(50)}...")
 
                                 // Construct the request body from the form state
                                 val herbBatchRequest = HerbBatchRequest(
@@ -279,8 +284,13 @@ fun DataCollectionScreen(navController: NavController) {
                                 )
 
                                 // Send the POST request to your backend
+                                val authHeader = "Bearer $jwtToken"
+                                android.util.Log.d("DataCollection", "Authorization header: $authHeader")
+                                android.util.Log.d("DataCollection", "Token format check - starts with 'eyJ': ${jwtToken.startsWith("eyJ")}")
+                                android.util.Log.d("DataCollection", "Token parts count: ${jwtToken.split(".").size}")
+                                
                                 val response = client.post("https://4fefd4396559.ngrok-free.app/createHerbBatch") {
-                                    header(HttpHeaders.Authorization, "Bearer $jwtToken")
+                                    header(HttpHeaders.Authorization, authHeader)
                                     contentType(ContentType.Application.Json)
                                     setBody(herbBatchRequest)
                                 }
@@ -290,7 +300,16 @@ fun DataCollectionScreen(navController: NavController) {
                                 } else {
                                     val errorBody = response.body<String>()
                                     android.util.Log.e("DataCollection", "API Error ${response.status.value}: $errorBody")
-                                    Toast.makeText(context, "API Error: ${response.status.value}", Toast.LENGTH_LONG).show()
+                                    android.util.Log.e("DataCollection", "Response headers: ${response.headers}")
+                                    
+                                    // Check if it's a token-related error
+                                    if (response.status.value == 401 || errorBody.contains("token", ignoreCase = true)) {
+                                        Toast.makeText(context, "Authentication failed. Please login again.", Toast.LENGTH_LONG).show()
+                                        // Clear the invalid token
+                                        tokenManager.clearToken()
+                                    } else {
+                                        Toast.makeText(context, "API Error: ${response.status.value} - $errorBody", Toast.LENGTH_LONG).show()
+                                    }
                                 }
 
                             } catch (e: Exception) {

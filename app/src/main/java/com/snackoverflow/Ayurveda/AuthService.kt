@@ -1,5 +1,6 @@
 package com.snackoverflow.Ayurveda
 
+import android.util.Log
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
@@ -16,6 +17,23 @@ import io.ktor.client.statement.*
 data class LoginRequest(
     val username: String,
     val password: String
+)
+
+@Serializable
+data class LoginResponse(
+    val success: Boolean,
+    val token: String?,
+    val message: String
+)
+
+@Serializable
+data class LoginApiResponse(
+    val token: String? = null,
+    val accessToken: String? = null,
+    val access_token: String? = null,
+    val jwt: String? = null,
+    val message: String? = null,
+    val success: Boolean? = null
 )
 
 @Serializable
@@ -70,13 +88,59 @@ object AuthService {
     // adjust IP for emulator/physical device
     private const val BASE_URL = "https://4fefd4396559.ngrok-free.app"
 
-    suspend fun loginUser(request: LoginRequest): HttpResponse {
-        return client.post("$BASE_URL/auth/login") {      // updated endpoint
+    suspend fun loginUser(request: LoginRequest): LoginResponse {
+        val response = client.post("$BASE_URL/auth/login") {      // updated endpoint
             contentType(ContentType.Application.Json)
             setBody(mapOf(
                 "email" to request.username,          // using email instead of userId
                 "password" to request.password         // now sending password too
             ))
+        }
+        
+        return if (response.status.isSuccess()) {
+            try {
+                val responseBody = response.body<String>()
+                Log.d("AuthService", "Login response body: $responseBody")
+                Log.d("AuthService", "Response status: ${response.status}")
+                Log.d("AuthService", "Response headers: ${response.headers}")
+                Log.d("AuthService", "Response body length: ${responseBody.length}")
+                Log.d("AuthService", "Response body type: ${responseBody::class.simpleName}")
+                
+                // Try to parse as JSON first
+                val jsonResponse = Json.decodeFromString<LoginApiResponse>(responseBody)
+                val extractedToken = jsonResponse.access_token ?: jsonResponse.accessToken ?: jsonResponse.token ?: jsonResponse.jwt
+                
+                Log.d("AuthService", "Extracted token: ${extractedToken?.take(50)}...")
+                Log.d("AuthService", "Token starts with 'eyJ': ${extractedToken?.startsWith("eyJ")}")
+                
+                val finalToken = extractedToken ?: responseBody
+                Log.d("AuthService", "Final token to return: ${finalToken.take(50)}...")
+                
+                LoginResponse(
+                    success = true,
+                    token = finalToken,
+                    message = "Login successful"
+                )
+            } catch (e: Exception) {
+                Log.e("AuthService", "Error parsing login response", e)
+                // If JSON parsing fails, assume the response body is the token itself
+                val responseBody = response.body<String>()
+                Log.d("AuthService", "Using raw response as token: ${responseBody.take(50)}...")
+                LoginResponse(
+                    success = true,
+                    token = responseBody,
+                    message = "Login successful"
+                )
+            }
+        } else {
+            val errorBody = response.body<String>()
+            Log.e("AuthService", "Login failed: ${response.status} - $errorBody")
+            Log.e("AuthService", "Response headers: ${response.headers}")
+            LoginResponse(
+                success = false,
+                token = null,
+                message = "Login failed: ${response.status.description} - $errorBody"
+            )
         }
     }
 
