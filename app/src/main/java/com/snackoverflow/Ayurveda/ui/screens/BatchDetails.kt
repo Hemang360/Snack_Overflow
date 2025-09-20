@@ -24,12 +24,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
@@ -145,8 +148,9 @@ fun BatchDetailsScreen(navController: NavController) {
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = Color(0xFF1A2118), // Set TopAppBar background color
+                    titleContentColor = Color.White,       // Set text color for contrast
+                    navigationIconContentColor = Color.White // Set icon color for contrast
                 )
             )
         }
@@ -189,15 +193,11 @@ fun BatchDetailsScreen(navController: NavController) {
 
             Spacer(Modifier.height(24.dp))
 
-            // Content area that reacts to the current state
-            // The Box wrapper was removed from here to fix the scope issue.
             when {
                 isLoading -> {
-                    // Loading state is handled by the button, but a central indicator can also be used
-                    // CircularProgressIndicator(modifier = Modifier.padding(top = 48.dp))
+                    // Loading state is handled by the button
                 }
                 errorMessage != null -> {
-                    // Error State
                     Text(
                         text = errorMessage!!,
                         color = MaterialTheme.colorScheme.error,
@@ -206,7 +206,6 @@ fun BatchDetailsScreen(navController: NavController) {
                     )
                 }
                 batchData != null -> {
-                    // Success State
                     AnimatedVisibility(
                         visible = true,
                         enter = fadeIn(),
@@ -216,7 +215,6 @@ fun BatchDetailsScreen(navController: NavController) {
                     }
                 }
                 else -> {
-                    // Initial/Idle State
                     Text(
                         text = "Enter a Batch ID and press 'Fetch' to see details.",
                         style = MaterialTheme.typography.bodyMedium,
@@ -317,4 +315,10 @@ private fun DetailItem(icon: ImageVector, label: String, value: String) {
             textAlign = TextAlign.End
         )
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun BatchDetailsScreenPreview() {
+    BatchDetailsScreen(navController = rememberNavController())
 }
