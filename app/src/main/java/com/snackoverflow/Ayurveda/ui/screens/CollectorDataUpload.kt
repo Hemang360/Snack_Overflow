@@ -23,7 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource // <-- ADDED IMPORT
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -33,22 +33,24 @@ import coil.compose.rememberAsyncImagePainter
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
-import com.snackoverflow.Ayurveda.R // <-- ADDED IMPORT (Ensure this path is correct for your project)
-import com.snackoverflow.Ayurveda.ui.navigation.Screen
+import com.snackoverflow.Ayurveda.R // <-- Ensure this path is correct for your project
+import com.snackoverflow.Ayurveda.ui.navigation.Screen // <-- Ensure this path is correct
+import io.github.jan.supabase.createSupabaseClient
+import io.github.jan.supabase.storage.Storage
+import io.github.jan.supabase.storage.storage
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
-import io.ktor.client.request.forms.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.util.Calendar
+import java.util.UUID
 
 // --- Data Models ---
 @Serializable
@@ -56,6 +58,7 @@ data class LocationData(
     val latitude: Double,
     val longitude: Double
 )
+
 // --- Data classes for request ---
 @Serializable
 data class GPSCoordinates(
@@ -80,7 +83,8 @@ data class HerbBatchRequest(
     val quantity: String,
     val gpsCoordinates: GPSCoordinates,
     val collectorId: String,
-    val environmentalData: EnvironmentalData
+    val environmentalData: EnvironmentalData,
+    val imageUrl: String // Field for the Supabase image URL
 )
 
 // --- Helper Function for Safe Location Access ---
@@ -115,7 +119,7 @@ private fun createImageUri(context: Context): Uri {
     )
 }
 
-// --- Helper function to get file name from URI ---
+// --- CORRECTED Helper function to get file name from URI ---
 private fun getFileName(context: Context, uri: Uri): String? {
     var fileName: String? = null
     if (uri.scheme == "content") {
@@ -130,15 +134,17 @@ private fun getFileName(context: Context, uri: Uri): String? {
         }
     }
     if (fileName == null) {
-        fileName = uri.path
-        val cut = fileName?.lastIndexOf('/')
-        if (cut != -1) {
-            fileName = fileName?.substring(cut!! + 1)
+        uri.path?.let { path ->
+            val cut = path.lastIndexOf('/')
+            fileName = if (cut != -1) {
+                path.substring(cut + 1)
+            } else {
+                path
+            }
         }
     }
     return fileName
 }
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -154,14 +160,24 @@ fun DataCollectionScreen(navController: NavController) {
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var showImageSourceDialog by remember { mutableStateOf(false) }
-    var showQrCodeDialog by remember { mutableStateOf(false) } // <-- NEW: State for QR dialog
+    var showQrCodeDialog by remember { mutableStateOf(false) }
 
     // --- Context and Scopes ---
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // --- Ktor HTTP Client ---
+    // --- Ktor HTTP Client for your backend ---
     val client = remember { HttpClient(CIO) { install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) } } }
+
+    // --- Supabase Client Initialization ---
+    val supabase = remember {
+        createSupabaseClient(
+            supabaseUrl = "https://plgikesmsrshyeflevnd.supabase.co", // 👈 Paste your Project URL here
+            supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsZ2lrZXNtc3JzaHllZmxldm5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzOTA1MTgsImV4cCI6MjA3Mzk2NjUxOH0.RrjV-MgiaRqV_328zUsX_djCxjKGvvCe_pjBlgGk_bM" // 👈 Paste your anon (public) key here
+        ) {
+            install(Storage)
+        }
+    }
 
     // --- Location Services ---
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
@@ -182,24 +198,9 @@ fun DataCollectionScreen(navController: NavController) {
 
     // --- ActivityResultLaunchers for gallery and camera ---
     var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
-
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        imageUri = uri
-    }
-
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture()
-    ) { success: Boolean ->
-        if (success) {
-            imageUri = tempCameraUri
-        }
-    }
-
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
+    val imagePickerLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? -> imageUri = uri }
+    val cameraLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.TakePicture()) { success: Boolean -> if (success) { imageUri = tempCameraUri } }
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
         if (isGranted) {
             val newUri = createImageUri(context)
             tempCameraUri = newUri
@@ -208,7 +209,6 @@ fun DataCollectionScreen(navController: NavController) {
             Toast.makeText(context, "Camera permission denied", Toast.LENGTH_SHORT).show()
         }
     }
-
 
     // --- Form Validation ---
     val isFormValid by remember(species, collectorId, latitude, longitude, quantity, collectionDate, qualityNotes, imageUri) {
@@ -233,72 +233,37 @@ fun DataCollectionScreen(navController: NavController) {
         calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)
     )
 
-    // --- Dialog to choose image source ---
+    // --- Dialogs ---
     if (showImageSourceDialog) {
         AlertDialog(
             onDismissRequest = { showImageSourceDialog = false },
             title = { Text("Choose Image Source") },
             text = { Text("Select a picture from the gallery or take a new one with your camera.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showImageSourceDialog = false
-                    imagePickerLauncher.launch("image/*")
-                }) {
-                    Text("Gallery")
-                }
-            },
+            confirmButton = { TextButton(onClick = { showImageSourceDialog = false; imagePickerLauncher.launch("image/*") }) { Text("Gallery") } },
             dismissButton = {
                 TextButton(onClick = {
                     showImageSourceDialog = false
-                    when (PackageManager.PERMISSION_GRANTED) {
-                        ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) -> {
-                            val newUri = createImageUri(context)
-                            tempCameraUri = newUri
-                            cameraLauncher.launch(newUri)
-                        }
-                        else -> {
-                            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                        }
+                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                        val newUri = createImageUri(context); tempCameraUri = newUri; cameraLauncher.launch(newUri)
+                    } else {
+                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                     }
-                }) {
-                    Text("Camera")
-                }
+                }) { Text("Camera") }
             }
         )
     }
-
-    // --- NEW: Dialog to show QR Code on success ---
     if (showQrCodeDialog) {
         AlertDialog(
-            onDismissRequest = {
-                showQrCodeDialog = false
-                navController.popBackStack()
-            },
+            onDismissRequest = { showQrCodeDialog = false; navController.popBackStack() },
             title = { Text("Submission Successful!") },
             text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    // Make sure you have an image named 'qr.png' in your res/drawable folder
-                    Image(
-                        painter = painterResource(id = R.drawable.qr),
-                        contentDescription = "Collection Event QR Code"
-                    )
+                Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                    Image(painter = painterResource(id = R.drawable.qr), contentDescription = "Collection Event QR Code")
                 }
             },
-            confirmButton = {
-                TextButton(onClick = {
-                    showQrCodeDialog = false
-                    navController.popBackStack()
-                }) {
-                    Text("Done")
-                }
-            }
+            confirmButton = { TextButton(onClick = { showQrCodeDialog = false; navController.popBackStack() }) { Text("Done") } }
         )
     }
-
 
     Scaffold(
         topBar = {
@@ -344,30 +309,19 @@ fun DataCollectionScreen(navController: NavController) {
 
             // --- Image picker and preview section ---
             item {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     imageUri?.let {
                         Text("Image Preview:", style = MaterialTheme.typography.bodyLarge)
                         Image(
-                            painter = rememberAsyncImagePainter(model = it),
-                            contentDescription = "Selected Herb Image",
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(200.dp),
-                            contentScale = ContentScale.Crop
+                            painter = rememberAsyncImagePainter(model = it), contentDescription = "Selected Herb Image",
+                            modifier = Modifier.fillMaxWidth().height(200.dp), contentScale = ContentScale.Crop
                         )
                     }
-                    Button(onClick = { showImageSourceDialog = true }) {
-                        Text(if (imageUri == null) "Select Herb Image" else "Change Herb Image")
-                    }
+                    Button(onClick = { showImageSourceDialog = true }) { Text(if (imageUri == null) "Select Herb Image" else "Change Herb Image") }
                 }
             }
 
-
-            // --- Submit Button ---
+            // --- Submit Button (with Supabase Logic) ---
             item {
                 Button(
                     onClick = {
@@ -376,10 +330,19 @@ fun DataCollectionScreen(navController: NavController) {
                         scope.launch {
                             isLoading = true
                             try {
-                                val imageFileName = getFileName(context, currentImageUri) ?: "unknown_image.jpg"
-                                val jwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFlMzM3MzNmLTQ3NWMtNDE4MS1iYmVhLThlOTVmMmE2MDE3YyIsInVzZXJuYW1lIjoieG9ueW5peCIsInJvbGUiOiJjb2xsZWN0b3IiLCJwZXJtaXNzaW9ucyI6WyJjcmVhdGU6Y29sbGVjdGlvbiIsInZpZXc6Y29sbGVjdGlvbiJdLCJpYXQiOjE3NTgxOTA1MjYsImV4cCI6MTc1ODI3NjkyNn0.1g1oiGEY16uTjghODAEdxk73cCc1NGsb7362Hv37LjA"
+                                // --- STEP 1: UPLOAD IMAGE TO SUPABASE STORAGE ---
+                                val fileBytes = context.contentResolver.openInputStream(currentImageUri)?.use { it.readBytes() }
+                                if (fileBytes == null) {
+                                    Toast.makeText(context, "Could not read image file.", Toast.LENGTH_SHORT).show()
+                                    isLoading = false
+                                    return@launch
+                                }
+                                val path = "${UUID.randomUUID()}.jpg"
+                                supabase.storage["herb_images"].upload(path, fileBytes)
+                                val uploadedImageUrl = supabase.storage["herb_images"].publicUrl(path)
 
-                                // Build the request object using data classes
+                                // --- STEP 2: SUBMIT DATA (WITH IMAGE URL) TO YOUR SERVER ---
+                                val jwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFlMzM3MzNmLTQ3NWMtNDE4MS1iYmVhLThlOTVmMmE2MDE3YyIsInVzZXJuYW1lIjoieG9ueW5peCIsInJvbGUiOiJjb2xsZWN0b3IiLCJwZXJtaXNzaW9ucyI6WyJjcmVhdGU6Y29sbGVjdGlvbiIsInZpZXc6Y29sbGVjdGlvbiJdLCJpYXQiOjE3NTgxOTA1MjYsImV4cCI6MTc1ODI3NjkyNn0.1g1oiGEY16uTjghODAEdxk73cCc1NGsb7362Hv37LjA" // Replace with your actual token
                                 val herbBatchRequest = HerbBatchRequest(
                                     userId = collectorId,
                                     batchId = "BATCH-${System.currentTimeMillis()}",
@@ -389,11 +352,8 @@ fun DataCollectionScreen(navController: NavController) {
                                     quantity = quantity,
                                     gpsCoordinates = GPSCoordinates(latitude.toDouble(), longitude.toDouble()),
                                     collectorId = collectorId,
-                                    environmentalData = EnvironmentalData(
-                                        temperature = "28°C",
-                                        humidity = "75%",
-                                        soilType = "Red laterite soil"
-                                    )
+                                    environmentalData = EnvironmentalData("28°C", "75%", "Red laterite soil"),
+                                    imageUrl = uploadedImageUrl
                                 )
 
                                 val dataSubmitResponse = client.post("http://192.168.1.8:5000/createHerbBatch") {
@@ -406,9 +366,10 @@ fun DataCollectionScreen(navController: NavController) {
                                     showQrCodeDialog = true
                                 } else {
                                     val errorBody = dataSubmitResponse.body<String>()
-                                    android.util.Log.e("DataCollection", "Error ${dataSubmitResponse.status.value}: $errorBody")
-                                    Toast.makeText(context, "Error: ${dataSubmitResponse.status.value}", Toast.LENGTH_LONG).show()
+                                    android.util.Log.e("DataCollection", "API Error ${dataSubmitResponse.status.value}: $errorBody")
+                                    Toast.makeText(context, "API Error: ${dataSubmitResponse.status.value}", Toast.LENGTH_LONG).show()
                                 }
+
                             } catch (e: Exception) {
                                 android.util.Log.e("DataCollection", "Submission failed", e)
                                 Toast.makeText(context, "Submission failed: ${e.message}", Toast.LENGTH_LONG).show()
@@ -421,10 +382,7 @@ fun DataCollectionScreen(navController: NavController) {
                     enabled = isFormValid && !isLoading
                 ) {
                     if (isLoading) {
-                        CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(24.dp)
-                        )
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(24.dp))
                     } else {
                         Text("Submit Data")
                     }
