@@ -5,8 +5,16 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -182,44 +190,40 @@ fun BatchDetailsScreen(navController: NavController) {
             Spacer(Modifier.height(24.dp))
 
             // Content area that reacts to the current state
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.TopCenter
-            ) {
-                when {
-                    isLoading -> {
-                        // Loading state is handled by the button, but a central indicator can also be used
-                        // CircularProgressIndicator(modifier = Modifier.padding(top = 48.dp))
+            // The Box wrapper was removed from here to fix the scope issue.
+            when {
+                isLoading -> {
+                    // Loading state is handled by the button, but a central indicator can also be used
+                    // CircularProgressIndicator(modifier = Modifier.padding(top = 48.dp))
+                }
+                errorMessage != null -> {
+                    // Error State
+                    Text(
+                        text = errorMessage!!,
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+                batchData != null -> {
+                    // Success State
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = fadeIn(),
+                        exit = fadeOut()
+                    ) {
+                        BatchDataCard(data = batchData!!)
                     }
-                    errorMessage != null -> {
-                        // Error State
-                        Text(
-                            text = errorMessage!!,
-                            color = MaterialTheme.colorScheme.error,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(16.dp)
-                        )
-                    }
-                    batchData != null -> {
-                        // Success State
-                        AnimatedVisibility(
-                            visible = true,
-                            enter = fadeIn(),
-                            exit = fadeOut()
-                        ) {
-                            BatchDataCard(data = batchData!!)
-                        }
-                    }
-                    else -> {
-                        // Initial/Idle State
-                        Text(
-                            text = "Enter a Batch ID and press 'Fetch' to see details.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(16.dp)
-                        )
-                    }
+                }
+                else -> {
+                    // Initial/Idle State
+                    Text(
+                        text = "Enter a Batch ID and press 'Fetch' to see details.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(16.dp)
+                    )
                 }
             }
         }
