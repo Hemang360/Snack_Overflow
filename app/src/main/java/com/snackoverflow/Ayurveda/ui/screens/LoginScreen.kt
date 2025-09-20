@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -30,6 +31,7 @@ import androidx.navigation.NavController
 import com.snackoverflow.Ayurveda.AuthService
 import com.snackoverflow.Ayurveda.LoginRequest
 import com.snackoverflow.Ayurveda.R
+import com.snackoverflow.Ayurveda.TokenManager
 import com.snackoverflow.Ayurveda.ui.navigation.Screen
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.launch
@@ -110,6 +112,8 @@ fun LoginScreen(navController: NavController) {
     var isPasswordVisible by rememberSaveable { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val tokenManager = remember { TokenManager(context) }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -187,11 +191,17 @@ fun LoginScreen(navController: NavController) {
                                 val loginRequest = LoginRequest(username, password)
                                 val response = AuthService.loginUser(loginRequest)
 
-                                if (response.status.isSuccess()) {
-                                    Log.d("LoginScreen", "Login successful!")
+                                if (response.success && response.token != null) {
+                                    Log.d("LoginScreen", "Login successful! Token received.")
+                                    Log.d("LoginScreen", "Token to save: ${response.token.take(50)}...")
+                                    // Save the JWT token
+                                    tokenManager.saveToken(response.token)
+                                    Log.d("LoginScreen", "Token saved, navigating to dashboard")
                                     navController.navigate(Screen.Dashboard.route)
                                 } else {
-                                    Log.e("LoginScreen", "Login failed with status: ${response.status}")
+                                    Log.e("LoginScreen", "Login failed: ${response.message}")
+                                    Log.e("LoginScreen", "Response success: ${response.success}")
+                                    Log.e("LoginScreen", "Response token: ${response.token?.take(50)}...")
                                     // TODO: Show a Snackbar or Toast with an error message
                                 }
                             } catch (e: Exception) {

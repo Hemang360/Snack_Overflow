@@ -5,17 +5,17 @@ plugins {
     // Add the Google services Gradle plugin
     id("com.google.gms.google-services")
     // Add this line
-    id("org.jetbrains.kotlin.plugin.serialization") version "1.9.22"
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.0.21"
 }
 
 android {
     namespace = "com.snackoverflow.Ayurveda"
-    compileSdk = 36
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.snackoverflow.Ayurveda"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -86,6 +86,13 @@ dependencies {
 
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.9.4")
+
+    //Supabase - temporarily removed due to dependency resolution issues
+    implementation(platform("io.github.jan-tennert.supabase:bom:2.5.0"))
+    implementation("io.github.jan-tennert.supabase:gotrue-kt") // For authentication
+    implementation("io.github.jan-tennert.supabase:storage-kt") // For file storage
+    implementation("io.github.jan-tennert.supabase:postgrest-kt") // For the database (optional but common)
+    
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

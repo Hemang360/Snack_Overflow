@@ -158,7 +158,7 @@ fun DescriptionSection(navController: NavController) {
         )
         Spacer(modifier = Modifier.height(32.dp))
         Text(
-            text = "Go beyond the label. Our platform uses blockchain technology to create an unchangeable, transparent record of each herb's journey. Scan a product's QR code to instantly access its complete history—from cultivation details and harvest dates to processing methods and quality certifications.", //\n\nBy decentralizing this information, we remove the guesswork and replace it with verifiable truth. Join us in building a global, trusted ledger of botanical knowledge, ensuring purity and authenticity from source to supplement.",
+            text = "From your hands to the consumer’s home we make sure your herbs are seen, valued, and trusted.\nHere, you can watch your harvest travel from field to product, and connect with the people who use it.\nOur platform joins you and the consumer under one umbrella , building trust, fairness, and respect for your hard work.",
             fontFamily = golosFont,
             fontSize = 17.sp,
             lineHeight = 26.sp,
