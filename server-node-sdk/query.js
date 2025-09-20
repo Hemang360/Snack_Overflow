@@ -1,9 +1,3 @@
-
-
-
-
-
-
 'use strict';
 
 const fs = require('fs');
@@ -11,10 +5,14 @@ const path = require('path');
 const { Wallets, Gateway } = require('fabric-network');
 
 const getQuery = async (fcn, args, userID) => {
-
-    const orgID = 'Org1';
     const channelName = 'mychannel';
     const chaincodeName = 'ehrChainCode';
+
+    // Determine which org the user belongs to
+    let orgID = 'Org1';
+    if (userID.toLowerCase().includes('lab') || userID === 'Laboratory01' || userID === 'LabOverseer01') {
+        orgID = 'Org2';
+    }
 
     const ccpPath = path.resolve(__dirname, '..', 'fabric-samples','test-network', 'organizations', 'peerOrganizations', `${orgID}.example.com`.toLowerCase(), `connection-${orgID}.json`.toLowerCase());
     const ccp = JSON.parse(fs.readFileSync(ccpPath, 'utf8'));
@@ -39,13 +37,16 @@ const getQuery = async (fcn, args, userID) => {
     const network = await gateway.getNetwork(channelName);
     const contract = network.getContract(chaincodeName);
 
-    console.log("arguments at query: ", JSON.stringify(args));
-
-    // FIX: Always pass the stringified args object.
-    // The chaincode shim correctly handles an empty '{}' string for functions
-    // that expect one argument but are called without specific parameters.
-    // This resolves the "Expected 1 parameters, but 0 have been supplied" error.
-    let result = await contract.evaluateTransaction(fcn, JSON.stringify(args));
+    console.log(`Query arguments for ${fcn}:`, JSON.stringify(args));
+    
+    let result;
+    if (Object.keys(args).length === 0) {
+        // For functions that don't require arguments (like fetchLedger)
+        result = await contract.evaluateTransaction(fcn);
+    } else {
+        // For functions that require arguments
+        result = await contract.evaluateTransaction(fcn, JSON.stringify(args));
+    }
 
     console.log(`Response from ${fcn} chaincode: ${result.toString()}`);
 

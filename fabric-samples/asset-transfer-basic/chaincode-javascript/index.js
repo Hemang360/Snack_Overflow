@@ -6,7 +6,7 @@
 
 'use strict';
 
-const HerbTraceabilityChaincode = require('./lib/herbTraceabilityChaincode');
+const ehrChainCode = require('./lib/ehrChainCode');
 
-module.exports.HerbTraceabilityChaincode = HerbTraceabilityChaincode;
-module.exports.contracts = [HerbTraceabilityChaincode];
+module.exports.ehrChainCode = ehrChainCode;
+module.exports.contracts = [ehrChainCode];

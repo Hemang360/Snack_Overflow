@@ -5,10 +5,14 @@ const path = require('path');
 const { Wallets, Gateway } = require('fabric-network');
 
 const invokeTransaction = async (fcn, args, userID) => {
-
-    const orgID = 'Org1';
     const channelName = 'mychannel';
     const chaincodeName = 'ehrChainCode';
+
+    // Determine which org the user belongs to
+    let orgID = 'Org1';
+    if (userID.toLowerCase().includes('lab') || userID === 'Laboratory01' || userID === 'LabOverseer01') {
+        orgID = 'Org2';
+    }
 
     const ccpPath = path.resolve(__dirname, '..', 'fabric-samples','test-network', 'organizations', 'peerOrganizations', `${orgID}.example.com`.toLowerCase(), `connection-${orgID}.json`.toLowerCase());
     const ccp = JSON.parse(fs.readFileSync(ccpPath, 'utf8'));
@@ -33,7 +37,8 @@ const invokeTransaction = async (fcn, args, userID) => {
     const network = await gateway.getNetwork(channelName);
     const contract = network.getContract(chaincodeName);
 
-    console.log("arguments at invoke: ", JSON.stringify(args))
+    console.log(`Invoke arguments for ${fcn}:`, JSON.stringify(args));
+    
     // Submit transaction with a single stringified JSON object
     let result = await contract.submitTransaction(fcn, JSON.stringify(args));
 
