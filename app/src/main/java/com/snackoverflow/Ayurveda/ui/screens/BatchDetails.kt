@@ -1,35 +1,40 @@
 package com.snackoverflow.Ayurveda.ui.screens
 
+import android.util.Log
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import android.util.Log
-import io.ktor.client.statement.bodyAsText
 
+// Data classes remain the same
 @Serializable
 data class BatchDetailsResponse(
     val success: Boolean,
@@ -67,9 +72,11 @@ data class GpsCoordinates(
 @Composable
 fun BatchDetailsScreen(navController: NavController) {
     var batchId by remember { mutableStateOf("") }
-    var userId by remember { mutableStateOf("Farmer01") }
+    val userId by remember { mutableStateOf("Farmer01") } // Kept as per original logic
     var isLoading by remember { mutableStateOf(false) }
     var batchData by remember { mutableStateOf<BatchData?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) } // For displaying errors in the UI
+
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -77,6 +84,45 @@ fun BatchDetailsScreen(navController: NavController) {
         HttpClient(CIO) {
             install(ContentNegotiation) {
                 json(Json { ignoreUnknownKeys = true })
+            }
+        }
+    }
+
+    fun fetchDetails() {
+        if (batchId.isBlank()) {
+            Toast.makeText(context, "Please enter a batch ID", Toast.LENGTH_SHORT).show()
+            return
+        }
+        scope.launch {
+            isLoading = true
+            batchData = null
+            errorMessage = null
+            try {
+                val response = client.post("http://192.168.1.8:5000/getBatchDetails") {
+                    contentType(ContentType.Application.Json)
+                    setBody(mapOf("userId" to userId, "batchId" to batchId))
+                }
+
+                if (response.status.isSuccess()) {
+                    val parsedResponse = response.body<BatchDetailsResponse>()
+                    if (parsedResponse.success && parsedResponse.data != null) {
+                        batchData = parsedResponse.data
+                    } else {
+                        errorMessage = "Failed to fetch batch data or batch not found."
+                        Toast.makeText(context, errorMessage, Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    val errorBody = response.bodyAsText()
+                    errorMessage = "Error ${response.status.value}: Server responded with an error."
+                    Log.e("BatchDetails", "Error ${response.status.value}: $errorBody")
+                    Toast.makeText(context, "Error: ${response.status.description}", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                errorMessage = "Request failed: ${e.message}"
+                Log.e("BatchDetails", "Request failed", e)
+                Toast.makeText(context, "Request failed. Check network connection.", Toast.LENGTH_LONG).show()
+            } finally {
+                isLoading = false
             }
         }
     }
@@ -89,7 +135,11 @@ fun BatchDetailsScreen(navController: NavController) {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
             )
         }
     ) { paddingValues ->
@@ -97,8 +147,9 @@ fun BatchDetailsScreen(navController: NavController) {
             modifier = Modifier
                 .padding(paddingValues)
                 .padding(16.dp)
+                .fillMaxSize()
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             OutlinedTextField(
                 value = batchId,
@@ -108,82 +159,158 @@ fun BatchDetailsScreen(navController: NavController) {
                 modifier = Modifier.fillMaxWidth()
             )
 
+            Spacer(Modifier.height(12.dp))
+
             Button(
-                onClick = {
-                    if (batchId.isBlank()) {
-                        Toast.makeText(context, "Please enter a batch ID", Toast.LENGTH_SHORT).show()
-                        return@Button
-                    }
-
-                    scope.launch {
-                        isLoading = true
-                        try {
-                            val requestPayload = mapOf(
-                                "userId" to userId,
-                                "batchId" to batchId
-                            )
-                            val response = client.post("http://192.168.1.8:5000/getBatchDetails") {
-                                contentType(ContentType.Application.Json)
-                                setBody(requestPayload)
-                            }
-
-                            if (response.status.isSuccess()) {
-                                val parsedResponse = response.body<BatchDetailsResponse>()
-                                if (parsedResponse.success) {
-                                    batchData = parsedResponse.data
-                                } else {
-                                    Toast.makeText(context, "Failed to fetch batch data", Toast.LENGTH_SHORT).show()
-                                }
-                            } else {
-                                val errorBody = response.bodyAsText()
-                                Toast.makeText(context, "Error: ${response.status.value}", Toast.LENGTH_LONG).show()
-                                Log.e("BatchDetails", "Error ${response.status.value}: $errorBody")
-                            }
-                        } catch (e: Exception) {
-                            Log.e("BatchDetails", "Request failed", e)
-                            Toast.makeText(context, "Request failed: ${e.message}", Toast.LENGTH_LONG).show()
-                        } finally {
-                            isLoading = false
-                        }
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
+                onClick = { fetchDetails() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
                 enabled = !isLoading
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 3.dp
                     )
                 } else {
-                    Text("Fetch Batch Details")
+                    Text("Fetch Batch Details", style = MaterialTheme.typography.bodyLarge)
                 }
             }
 
-            batchData?.let { data ->
-                Text("Batch Details", style = MaterialTheme.typography.titleMedium)
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0xFFEFEFEF), RoundedCornerShape(8.dp))
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text("Batch ID: ${data.batchId}", fontFamily = FontFamily.Monospace)
-                    Text("Herb Name: ${data.herbName}", fontFamily = FontFamily.Monospace)
-                    Text("Collector: ${data.collectorId}", fontFamily = FontFamily.Monospace)
-                    Text("Farm Location: ${data.farmLocation}", fontFamily = FontFamily.Monospace)
-                    Text("Quantity: ${data.quantity}", fontFamily = FontFamily.Monospace)
-                    Text("Harvest Date: ${data.harvestDate}", fontFamily = FontFamily.Monospace)
-                    Text("Temperature: ${data.environmentalData.temperature}", fontFamily = FontFamily.Monospace)
-                    Text("Humidity: ${data.environmentalData.humidity}", fontFamily = FontFamily.Monospace)
-                    Text("Soil Type: ${data.environmentalData.soilType}", fontFamily = FontFamily.Monospace)
-                    Text("Latitude: ${data.gpsCoordinates.latitude}", fontFamily = FontFamily.Monospace)
-                    Text("Longitude: ${data.gpsCoordinates.longitude}", fontFamily = FontFamily.Monospace)
-                    data.qualityStatus?.let { Text("Quality Status: $it") }
-                    data.status?.let { Text("Status: $it") }
+            Spacer(Modifier.height(24.dp))
+
+            // Content area that reacts to the current state
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                when {
+                    isLoading -> {
+                        // Loading state is handled by the button, but a central indicator can also be used
+                        // CircularProgressIndicator(modifier = Modifier.padding(top = 48.dp))
+                    }
+                    errorMessage != null -> {
+                        // Error State
+                        Text(
+                            text = errorMessage!!,
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                    batchData != null -> {
+                        // Success State
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = fadeIn(),
+                            exit = fadeOut()
+                        ) {
+                            BatchDataCard(data = batchData!!)
+                        }
+                    }
+                    else -> {
+                        // Initial/Idle State
+                        Text(
+                            text = "Enter a Batch ID and press 'Fetch' to see details.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun BatchDataCard(data: BatchData) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            SectionTitle("Core Information")
+            DetailItem(icon = Icons.Default.Info, label = "Batch ID", value = data.batchId)
+            DetailItem(icon = Icons.Default.Grass, label = "Herb Name", value = data.herbName)
+            DetailItem(icon = Icons.Default.Person, label = "Collector", value = data.collectorId)
+            DetailItem(icon = Icons.Default.Eco, label = "Farm Location", value = data.farmLocation)
+            DetailItem(icon = Icons.Default.Scale, label = "Quantity", value = data.quantity)
+            DetailItem(icon = Icons.Default.CalendarToday, label = "Harvest Date", value = data.harvestDate)
+
+            SectionTitle("Environmental Conditions")
+            DetailItem(icon = Icons.Default.Thermostat, label = "Temperature", value = data.environmentalData.temperature)
+            DetailItem(icon = Icons.Default.WaterDrop, label = "Humidity", value = data.environmentalData.humidity)
+            DetailItem(icon = Icons.Default.Landscape, label = "Soil Type", value = data.environmentalData.soilType)
+
+            SectionTitle("Location")
+            DetailItem(icon = Icons.Default.GpsFixed, label = "Latitude", value = data.gpsCoordinates.latitude.toString())
+            DetailItem(icon = Icons.Default.GpsFixed, label = "Longitude", value = data.gpsCoordinates.longitude.toString())
+
+            // Optional Fields
+            if (data.qualityStatus != null || data.status != null) {
+                SectionTitle("Status")
+                data.qualityStatus?.let {
+                    DetailItem(icon = Icons.Default.Verified, label = "Quality Status", value = it)
+                }
+                data.status?.let {
+                    DetailItem(icon = Icons.Default.CheckCircle, label = "Overall Status", value = it)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionTitle(title: String) {
+    Column {
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Divider(modifier = Modifier.padding(top = 4.dp))
+    }
+}
+
+
+@Composable
+private fun DetailItem(icon: ImageVector, label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(Modifier.width(16.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.End
+        )
     }
 }
