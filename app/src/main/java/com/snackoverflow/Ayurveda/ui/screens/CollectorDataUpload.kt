@@ -29,10 +29,12 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
@@ -436,7 +438,7 @@ fun DataCollectionScreen(navController: NavController) {
             // --- Form Fields ---
             item { OutlinedTextField(value = herbName, onValueChange = { herbName = it }, label = { Text("Herb Name") }, modifier = Modifier.fillMaxWidth()) }
             item { OutlinedTextField(value = scientificName, onValueChange = { scientificName = it }, label = { Text("Scientific Name") }, modifier = Modifier.fillMaxWidth()) }
-            item { OutlinedTextField(value = collectorId, onValueChange = { collectorId = it }, label = { Text("Collector ID") }, modifier = Modifier.fillMaxWidth()) }
+            item { OutlinedTextField(value = collectorId, onValueChange = { collectorId = it }, label = { Text("Farmer's Name") }, modifier = Modifier.fillMaxWidth()) }
             item {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -631,4 +633,10 @@ fun DataCollectionScreen(navController: NavController) {
             }
         }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun DataCollectionScreenPreview(){
+    DataCollectionScreen(navController = rememberNavController())
 }
