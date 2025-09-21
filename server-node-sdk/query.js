@@ -8,7 +8,7 @@ const getQuery = async (fcn, args, userID) => {
     const channelName = 'mychannel';
     const chaincodeName = 'ehrChainCode';
 
-    // Allow queries without userID for public functions like consumer info
+  
     if (!fcn) {
         return {
             statusCode: 400,
@@ -18,7 +18,7 @@ const getQuery = async (fcn, args, userID) => {
     }
 
     try {
-        // Determine organization based on user ID
+
         let orgID = determineOrganization(userID);
         
         console.log(`Querying ${fcn} for user ${userID || 'anonymous'} using organization ${orgID}`);
@@ -34,12 +34,12 @@ const getQuery = async (fcn, args, userID) => {
 
         const ccp = JSON.parse(fs.readFileSync(ccpPath, 'utf8'));
 
-        // Setup wallet
+
         const walletPath = path.join(process.cwd(), 'wallet');
         const wallet = await Wallets.newFileSystemWallet(walletPath);
         console.log(`Wallet path: ${walletPath}`);
 
-        // For public queries (like consumer info), use a default identity if userID not provided
+     
         let identityToUse = userID;
         if (!userID && isPublicQuery(fcn)) {
             // Try to find any available identity for public queries
@@ -50,7 +50,7 @@ const getQuery = async (fcn, args, userID) => {
             }
         }
 
-        // Check if identity exists in wallet
+   
         if (identityToUse) {
             const identity = await wallet.get(identityToUse);
             if (!identity) {
@@ -71,7 +71,7 @@ const getQuery = async (fcn, args, userID) => {
             discovery: { enabled: true, asLocalhost: true } 
         });
 
-        // Get network and contract
+    
         const network = await gateway.getNetwork(channelName);
         const contract = network.getContract(chaincodeName);
 
@@ -80,12 +80,12 @@ const getQuery = async (fcn, args, userID) => {
 
         let result;
         
-        // Handle different query patterns
+     
         if (!args || Object.keys(args).length === 0) {
-            // Functions that don't require arguments (like fetchLedger)
+       
             result = await contract.evaluateTransaction(fcn);
         } else {
-            // Functions that require arguments
+         
             result = await contract.evaluateTransaction(fcn, JSON.stringify(args));
         }
 
@@ -94,7 +94,7 @@ const getQuery = async (fcn, args, userID) => {
         // Disconnect gateway
         gateway.disconnect();
 
-        // Parse and return result
+
         try {
             const parsedResult = JSON.parse(result.toString());
             return {
@@ -104,7 +104,7 @@ const getQuery = async (fcn, args, userID) => {
                 data: parsedResult
             };
         } catch (parseError) {
-            // If result is not JSON, return as string
+          
             return {
                 statusCode: 200,
                 status: true,
@@ -116,7 +116,6 @@ const getQuery = async (fcn, args, userID) => {
     } catch (error) {
         console.error(`Failed to query ${fcn} for user ${userID || 'anonymous'}:`, error.message);
         
-        // Enhanced error handling
         let errorMessage = error.message;
         let statusCode = 500;
 
@@ -148,7 +147,6 @@ function determineOrganization(userID) {
     // Default to Org1
     let orgID = 'Org1';
 
-    // Check if user belongs to Org2 (laboratories and lab overseers)
     if (userID && (
         userID.toLowerCase().includes('lab') ||
         userID === 'Laboratory01' ||
@@ -163,7 +161,7 @@ function determineOrganization(userID) {
     return orgID;
 }
 
-// Helper function to check if a query is public (doesn't require specific user permissions)
+
 function isPublicQuery(fcn) {
     const publicQueries = [
         'getConsumerInfo',
@@ -174,12 +172,9 @@ function isPublicQuery(fcn) {
     
     return publicQueries.includes(fcn);
 }
-
-// Helper function to get available identities from wallet
 async function getAvailableIdentities(wallet) {
     try {
-        // This is a simplified approach - in a real scenario you might want to
-        // have a dedicated public identity or use a more sophisticated approach
+
         const commonIdentities = [
             'regulatorAdmin',
             'Regulator01',
@@ -202,7 +197,6 @@ async function getAvailableIdentities(wallet) {
     }
 }
 
-// Enhanced query function with parameter validation
 const getQueryWithValidation = async (fcn, args, userID) => {
     // Pre-validation
     if (!fcn) {
@@ -213,7 +207,6 @@ const getQueryWithValidation = async (fcn, args, userID) => {
         };
     }
 
-    // Validate arguments based on function
     const validationResult = validateQueryArgs(fcn, args);
     if (!validationResult.valid) {
         return {
@@ -226,7 +219,6 @@ const getQueryWithValidation = async (fcn, args, userID) => {
     return await getQuery(fcn, args, userID);
 }
 
-// Validation helper for query arguments
 function validateQueryArgs(fcn, args) {
     if (!args && requiresArgs(fcn)) {
         return { valid: false, message: 'Arguments are required for this query' };
@@ -265,18 +257,17 @@ function validateQueryArgs(fcn, args) {
             break;
 
         case 'fetchLedger':
-            // No arguments required
+
             break;
 
         default:
-            // For other functions, basic validation
+       
             break;
     }
 
     return { valid: true };
 }
 
-// Helper function to check if a function requires arguments
 function requiresArgs(fcn) {
     const noArgsRequired = [
         'fetchLedger'
@@ -309,7 +300,7 @@ const getBatchQueries = async (queries, userID) => {
     return results;
 }
 
-// Helper function to format consumer info for better readability
+
 const formatConsumerInfo = (consumerInfo) => {
     try {
         const data = typeof consumerInfo === 'string' ? JSON.parse(consumerInfo) : consumerInfo;
@@ -361,7 +352,7 @@ const formatConsumerInfo = (consumerInfo) => {
     }
 }
 
-// Helper function to format batch details
+
 const formatBatchDetails = (batchDetails) => {
     try {
         const data = typeof batchDetails === 'string' ? JSON.parse(batchDetails) : batchDetails;
