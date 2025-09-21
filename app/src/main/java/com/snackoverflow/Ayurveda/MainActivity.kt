@@ -2,7 +2,7 @@ package com.snackoverflow.Ayurveda
 
 import DataCollectionScreen
 import LoginScreen
-import LoginScreenTheme
+import com.snackoverflow.Ayurveda.ui.theme.HerbAbhilekhTheme
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -16,7 +16,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            LoginScreenTheme {
+            HerbAbhilekhTheme {
                 HerbAbhilekh()
             }
         }
