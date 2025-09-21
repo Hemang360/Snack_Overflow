@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.graphics.drawable.BitmapDrawable
+import android.graphics.Color
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.widget.DatePicker
@@ -25,21 +25,28 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
-import com.snackoverflow.Ayurveda.TokenManager
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.qrcode.QRCodeWriter
+import com.snackoverflow.Ayurveda.TokenManager
 import com.snackoverflow.Ayurveda.R // <-- Ensure this path is correct for your project
 import com.snackoverflow.Ayurveda.ui.navigation.Screen // <-- Ensure this path is correct
+import io.github.jan.supabase.createSupabaseClient
+import io.github.jan.supabase.storage.Storage
+import io.github.jan.supabase.storage.storage
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
@@ -54,11 +61,8 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.Calendar
 import java.util.UUID
-import io.github.jan.supabase.createSupabaseClient
-import io.github.jan.supabase.storage.Storage
-import io.github.jan.supabase.storage.storage
 
-// --- Updated Data classes for request to match the target JSON format ---
+// --- Data classes for request and response ---
 @Serializable
 data class GPSCoordinates(
     val latitude: Double,
@@ -75,14 +79,45 @@ data class HerbBatchRequest(
     val quantity: Double,
     val unit: String,
     val gpsCoordinates: GPSCoordinates,
-    val collectorId: String, // Reverted to a normal string ID
+    val collectorId: String,
     val cultivationMethod: String,
     val harvestMethod: String,
     val plantPart: String,
-    val images: List<String> // New field for image URLs
+    val images: List<String>
 )
 
-// --- Helper Function for Safe Location Access ---
+@Serializable
+data class HerbBatchResponse(
+    val message: String,
+    val batchId: String
+)
+
+// Response structure based on the API logs
+@Serializable
+data class BundleResponse(
+    val resourceType: String,
+    val id: String,
+    val entry: List<Entry>
+)
+
+@Serializable
+data class Entry(
+    val resource: Resource
+)
+
+@Serializable
+data class Resource(
+    val resourceType: String,
+    val id: String,
+    val identifier: List<Identifier>? = null
+)
+
+@Serializable
+data class Identifier(
+    val value: String
+)
+
+// --- Helper Functions ---
 private fun requestCurrentLocation(
     context: Context,
     fusedLocationClient: FusedLocationProviderClient,
@@ -100,7 +135,6 @@ private fun requestCurrentLocation(
     }
 }
 
-// --- Helper function to create a temporary URI for the camera ---
 private fun createImageUri(context: Context): Uri {
     val imageFile = File.createTempFile(
         "collector_photo_",
@@ -114,7 +148,6 @@ private fun createImageUri(context: Context): Uri {
     )
 }
 
-// --- Helper function to get file name from URI ---
 private fun getFileName(context: Context, uri: Uri): String? {
     var fileName: String? = null
     if (uri.scheme == "content") {
@@ -141,11 +174,27 @@ private fun getFileName(context: Context, uri: Uri): String? {
     return fileName
 }
 
-// --- Helper function to share the QR code image ---
-private fun shareQrCode(context: Context) {
-    val drawable = ContextCompat.getDrawable(context, R.drawable.qr)
-    val bitmap = (drawable as BitmapDrawable).bitmap
+private fun generateQrCodeBitmap(text: String): Bitmap? {
+    if (text.isBlank()) return null
+    return try {
+        val writer = QRCodeWriter()
+        val bitMatrix = writer.encode(text, BarcodeFormat.QR_CODE, 512, 512)
+        val width = bitMatrix.width
+        val height = bitMatrix.height
+        val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565)
+        for (x in 0 until width) {
+            for (y in 0 until height) {
+                bmp.setPixel(x, y, if (bitMatrix[x, y]) Color.BLACK else Color.WHITE)
+            }
+        }
+        bmp
+    } catch (e: Exception) {
+        android.util.Log.e("QrGenerator", "Failed to generate QR code bitmap", e)
+        null
+    }
+}
 
+private fun shareQrCode(context: Context, bitmap: Bitmap) {
     try {
         val cachePath = File(context.cacheDir, "images")
         cachePath.mkdirs()
@@ -180,7 +229,7 @@ fun DataCollectionScreen(navController: NavController) {
     // --- State Management for all form fields ---
     var herbName by remember { mutableStateOf("") }
     var scientificName by remember { mutableStateOf("") }
-    var collectorId by remember { mutableStateOf("") } // New state for Collector ID
+    var collectorId by remember { mutableStateOf("") }
     var latitude by remember { mutableStateOf("") }
     var longitude by remember { mutableStateOf("") }
     var quantity by remember { mutableStateOf("") }
@@ -197,6 +246,8 @@ fun DataCollectionScreen(navController: NavController) {
 
     var isLoading by remember { mutableStateOf(false) }
     var showQrCodeDialog by remember { mutableStateOf(false) }
+    var generatedQrCodeBitmap by remember { mutableStateOf<Bitmap?>(null) }
+
 
     // --- Context and Scopes ---
     val context = LocalContext.current
@@ -269,7 +320,7 @@ fun DataCollectionScreen(navController: NavController) {
         derivedStateOf {
             herbName.isNotBlank() &&
                     scientificName.isNotBlank() &&
-                    collectorId.isNotBlank() && // Added validation for Collector ID
+                    collectorId.isNotBlank() &&
                     collectorImageUri != null &&
                     latitude.isNotBlank() &&
                     longitude.isNotBlank() &&
@@ -326,7 +377,11 @@ fun DataCollectionScreen(navController: NavController) {
     // --- QR Code Dialog ---
     if (showQrCodeDialog) {
         AlertDialog(
-            onDismissRequest = { showQrCodeDialog = false; navController.popBackStack() },
+            onDismissRequest = {
+                showQrCodeDialog = false
+                generatedQrCodeBitmap = null // Clear the bitmap state
+                navController.popBackStack()
+            },
             title = { Text("Submission Successful!") },
             text = {
                 Column(
@@ -334,16 +389,29 @@ fun DataCollectionScreen(navController: NavController) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Image(painter = painterResource(id = R.drawable.qr), contentDescription = "Generated QR Code")
+                    generatedQrCodeBitmap?.let { bmp ->
+                        Image(
+                            bitmap = bmp.asImageBitmap(),
+                            contentDescription = "Generated QR Code for Batch ID"
+                        )
+                    } ?: Text("Generating QR Code...")
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showQrCodeDialog = false; navController.popBackStack() }) {
+                TextButton(onClick = {
+                    showQrCodeDialog = false
+                    generatedQrCodeBitmap = null // Clear the bitmap state
+                    navController.popBackStack()
+                }) {
                     Text("Done")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { shareQrCode(context) }) {
+                TextButton(onClick = {
+                    generatedQrCodeBitmap?.let { bmp ->
+                        shareQrCode(context, bmp)
+                    }
+                }) {
                     Text("Share")
                 }
             }
@@ -370,8 +438,7 @@ fun DataCollectionScreen(navController: NavController) {
             // --- Form Fields ---
             item { OutlinedTextField(value = herbName, onValueChange = { herbName = it }, label = { Text("Herb Name") }, modifier = Modifier.fillMaxWidth()) }
             item { OutlinedTextField(value = scientificName, onValueChange = { scientificName = it }, label = { Text("Scientific Name") }, modifier = Modifier.fillMaxWidth()) }
-            item { OutlinedTextField(value = collectorId, onValueChange = { collectorId = it }, label = { Text("Collector ID") }, modifier = Modifier.fillMaxWidth()) }
-            // --- Herb Photo Upload ---
+            item { OutlinedTextField(value = collectorId, onValueChange = { collectorId = it }, label = { Text("Farmer's Name") }, modifier = Modifier.fillMaxWidth()) }
             item {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -411,7 +478,6 @@ fun DataCollectionScreen(navController: NavController) {
             }
             item { OutlinedTextField(value = farmLocation, onValueChange = { farmLocation = it }, label = { Text("Farm Location") }, modifier = Modifier.fillMaxWidth()) }
 
-            // --- Quantity and Unit on the same row ---
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
@@ -430,7 +496,6 @@ fun DataCollectionScreen(navController: NavController) {
                 }
             }
 
-            // --- Location Fields ---
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = {
@@ -450,10 +515,7 @@ fun DataCollectionScreen(navController: NavController) {
                 }
             }
 
-            // --- Date Picker Button ---
             item { OutlinedButton(onClick = { datePickerDialog.show() }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp)) { Text(text = harvestDate, modifier = Modifier.padding(vertical = 8.dp)) } }
-
-            // --- More Fields ---
             item { OutlinedTextField(value = cultivationMethod, onValueChange = { cultivationMethod = it }, label = { Text("Cultivation Method") }, modifier = Modifier.fillMaxWidth()) }
             item { OutlinedTextField(value = harvestMethod, onValueChange = { harvestMethod = it }, label = { Text("Harvest Method") }, modifier = Modifier.fillMaxWidth()) }
             item { OutlinedTextField(value = plantPart, onValueChange = { plantPart = it }, label = { Text("Plant Part Used") }, modifier = Modifier.fillMaxWidth()) }
@@ -469,7 +531,6 @@ fun DataCollectionScreen(navController: NavController) {
                             try {
                                 val currentImageUri = collectorImageUri ?: return@launch
 
-                                // --- STEP 1: UPLOAD IMAGE TO SUPABASE STORAGE ---
                                 val fileBytes = context.contentResolver.openInputStream(currentImageUri)?.use { it.readBytes() }
                                 if (fileBytes == null) {
                                     Toast.makeText(context, "Could not read image file.", Toast.LENGTH_SHORT).show()
@@ -481,14 +542,8 @@ fun DataCollectionScreen(navController: NavController) {
                                 supabase.storage["herb_images"].upload(path, fileBytes)
                                 val uploadedImageUrl = supabase.storage["herb_images"].publicUrl(path)
 
-                                android.util.Log.d("DataCollection", "Image uploaded to Supabase: $uploadedImageUrl")
+                                val jwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmYXJtZXJfMTc1ODQzMDA0OTM0M18zOGU1ZjNkOSIsInJvbGUiOiJmYXJtZXIiLCJlbWFpbCI6InNoYW5raGFuaWxzYWhhQGdtYWlsLmNvbSIsImRldmljZUluZm8iOnsidHlwZSI6IndlYiIsInVzZXJBZ2VudCI6ImN1cmwvOC41LjAiLCJpcCI6Ijo6ZmZmZjoxMDYuMjE5LjcxLjUiLCJ0aW1lc3RhbXAiOiIyMDI1LTA5LTIxVDA1OjIxOjM0LjE1NFoifSwidHlwZSI6ImFjY2VzcyIsImlhdCI6MTc1ODQzMjA5NCwiZXhwIjoxNzU4NDMyOTk0LCJhdWQiOiJheXVydmVkYS11c2VycyIsImlzcyI6ImF5dXJ2ZWRhLXN1cHBseS1jaGFpbiJ9.zDwI2hUqAQGjbFZq6TtLMwM_l8uxb7vn16wdl80HMi0"
 
-                                // --- STEP 2: SUBMIT DATA WITH IMAGE URL IN THE NEW 'images' FIELD ---
-                                val jwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmYXJtZXJfMTc1ODM5OTc3MzY3Nl8xOWIxNThiMyIsInJvbGUiOiJmYXJtZXIiLCJlbWFpbCI6InNoYW5raGFuaWxzYWhhQGdtYWlsLmNvbSIsImRldmljZUluZm8iOnsidHlwZSI6IndlYiIsInVzZXJBZ2VudCI6ImN1cmwvOC4xNi4wIiwiaXAiOiI6OjEiLCJ0aW1lc3RhbXAiOiIyMDI1LTA5LTIwVDIxOjIwOjA1LjA3OFoifSwidHlwZSI6ImFjY2VzcyIsImlhdCI6MTc1ODQwMzIwNSwiZXhwIjoxNzU4NDA0MTA1LCJhdWQiOiJheXVydmVkYS11c2VycyIsImlzcyI6ImF5dXJ2ZWRhLXN1cHBseS1jaGFpbiJ9.2V31TxaldRJTdmAMgrCzf2qNilV1VmyjOE7Y3dlSUMU"
-
-                                android.util.Log.d("DataCollection", "Using hardcoded JWT token: ${jwtToken.take(50)}...")
-
-                                // Construct the request body from the form state
                                 val herbBatchRequest = HerbBatchRequest(
                                     batchId = "BATCH-${System.currentTimeMillis()}",
                                     herbName = herbName,
@@ -501,26 +556,49 @@ fun DataCollectionScreen(navController: NavController) {
                                         latitude.toDoubleOrNull() ?: 0.0,
                                         longitude.toDoubleOrNull() ?: 0.0
                                     ),
-                                    collectorId = collectorId, // Use the value from the new text field
+                                    collectorId = collectorId,
                                     cultivationMethod = cultivationMethod,
                                     harvestMethod = harvestMethod,
                                     plantPart = plantPart,
-                                    images = listOf(uploadedImageUrl) // Place the URL in the new 'images' list
+                                    images = listOf(uploadedImageUrl)
                                 )
 
-                                // Send the POST request to your backend
-                                val authHeader = "Bearer $jwtToken"
-                                android.util.Log.d("DataCollection", "Authorization header: $authHeader")
-                                android.util.Log.d("DataCollection", "Token format check - starts with 'eyJ': ${jwtToken.startsWith("eyJ")}")
-                                android.util.Log.d("DataCollection", "Token parts count: ${jwtToken.split(".").size}")
-
-                                val response = client.post("https://4fefd4396559.ngrok-free.app/createHerbBatch") {
-                                    header(HttpHeaders.Authorization, authHeader)
+                                val response = client.post("http://3.27.15.114:5000/createHerbBatch") {
+                                    header(HttpHeaders.Authorization, "Bearer $jwtToken")
                                     contentType(ContentType.Application.Json)
                                     setBody(herbBatchRequest)
                                 }
 
                                 if (response.status.isSuccess()) {
+                                    val responseBody = response.body<String>()
+                                    android.util.Log.d("DataCollection", "API Response: $responseBody")
+                                    
+                                    // Try to parse as BundleResponse first (new format)
+                                    val batchId = try {
+                                        val bundleResponse = Json.decodeFromString<BundleResponse>(responseBody)
+                                        // Extract batch ID from entry[0].resource.id or entry[0].resource.identifier[0].value
+                                        val firstEntry = bundleResponse.entry.firstOrNull()
+                                        if (firstEntry != null) {
+                                            val resourceId = firstEntry.resource.id
+                                            val identifierValue = firstEntry.resource.identifier?.firstOrNull()?.value
+                                            resourceId.ifEmpty { identifierValue ?: "" }
+                                        } else {
+                                            bundleResponse.id // Fallback to top-level id
+                                        }
+                                    } catch (e: Exception) {
+                                        android.util.Log.d("DataCollection", "Failed to parse as BundleResponse, trying HerbBatchResponse: ${e.message}")
+                                        // Fallback to old format
+                                        try {
+                                            val herbBatchResponse = Json.decodeFromString<HerbBatchResponse>(responseBody)
+                                            herbBatchResponse.batchId
+                                        } catch (e2: Exception) {
+                                            android.util.Log.e("DataCollection", "Failed to parse response: ${e2.message}")
+                                            "BATCH-${System.currentTimeMillis()}" // Fallback batch ID
+                                        }
+                                    }
+                                    
+                                    android.util.Log.d("DataCollection", "Extracted Batch ID: $batchId")
+                                    generatedQrCodeBitmap = generateQrCodeBitmap(batchId)
                                     showQrCodeDialog = true
                                 } else {
                                     val errorBody = response.body<String>()
@@ -555,4 +633,10 @@ fun DataCollectionScreen(navController: NavController) {
             }
         }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun DataCollectionScreenPreview(){
+    DataCollectionScreen(navController = rememberNavController())
 }
