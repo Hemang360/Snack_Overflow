@@ -1,8 +1,3 @@
-/*
- * Copyright IBM Corp. All Rights Reserved.
- *
- * SPDX-License-Identifier: Apache-2.0
- */
 
 'use strict';
 
@@ -17,17 +12,16 @@ class ehrChainCode extends Contract {
         return `${type}-${txId}`;
     }
 
-    // Enhanced caller attributes with fallback for admin identities
     getCallerAttributes(ctx) {
         const role = ctx.clientIdentity.getAttributeValue('role');
         const uuid = ctx.clientIdentity.getAttributeValue('uuid');
         const mspId = ctx.clientIdentity.getMSPID();
         const commonName = ctx.clientIdentity.getID();
 
-        // Extract identity name from X.509 subject
+  
         const identityName = this.extractIdentityName(commonName);
 
-        // For admin identities, provide fallback role based on MSP and identity name
+     
         if (!role || !uuid) {
             const adminRole = this.determineAdminRole(identityName, mspId);
             if (adminRole) {
@@ -50,14 +44,12 @@ class ehrChainCode extends Contract {
         };
     }
 
-    // Extract identity name from X.509 subject
     extractIdentityName(commonName) {
-        // Extract CN from subject string like "CN=admin::CN=ca-org1"
+     
         const cnMatch = commonName.match(/CN=([^:,]+)/);
         return cnMatch ? cnMatch[1] : commonName;
     }
 
-    // Determine admin role based on identity name and MSP
     determineAdminRole(identityName, mspId) {
         const adminMappings = {
             'Org1MSP': {
@@ -75,7 +67,6 @@ class ehrChainCode extends Contract {
         return adminMappings[mspId]?.[identityName] || null;
     }
 
-    // Enhanced authorization check
     checkAuthorization(callerInfo, requiredRole, requiredMSP = null) {
         if (requiredMSP && callerInfo.mspId !== requiredMSP) {
             throw new Error(`Access denied: Operation requires ${requiredMSP} membership. Current MSP: ${callerInfo.mspId}`);
@@ -88,9 +79,8 @@ class ehrChainCode extends Contract {
         return true;
     }
 
-    // Validation helper function for geo-location
     validateGeoLocation(latitude, longitude) {
-        // Expanded approved zones covering major medicinal plant regions in India
+
         const approvedZones = [
             // North India Zones
             { name: 'Uttarakhand Himalayan Zone', minLat: 28.4, maxLat: 31.5, minLong: 77.6, maxLong: 81.1 },
@@ -147,12 +137,12 @@ class ehrChainCode extends Contract {
         return { valid: false, zone: null };
     }
 
-    // Onboard farmer - Updated with better authorization
+
     async onboardFarmer(ctx, args) {
         const { farmerId, name, farmLocation, contact, certifications } = JSON.parse(args);
         const callerInfo = this.getCallerAttributes(ctx);
 
-        // Check authorization - only regulators from Org1 can onboard farmers
+
         this.checkAuthorization(callerInfo, 'regulator', 'Org1MSP');
 
         const existing = await ctx.stub.getState(farmerId);
@@ -215,12 +205,12 @@ class ehrChainCode extends Contract {
         return stringify(farmer);
     }
 
-    // Onboard laboratory - Updated with better authorization
+ 
     async onboardLaboratory(ctx, args) {
         const { laboratoryId, labName, location, accreditation, certifications, contact } = JSON.parse(args);
         const callerInfo = this.getCallerAttributes(ctx);
 
-        // Check authorization - only lab overseers from Org2 can onboard laboratories
+     
         this.checkAuthorization(callerInfo, 'labOverseer', 'Org2MSP');
 
         const existing = await ctx.stub.getState(laboratoryId);
@@ -295,12 +285,11 @@ class ehrChainCode extends Contract {
         return stringify(laboratory);
     }
 
-    // Onboard manufacturer - Updated with better authorization
     async onboardManufacturer(ctx, args) {
         const { manufacturerId, companyName, name, location, licenses, contact } = JSON.parse(args);
         const callerInfo = this.getCallerAttributes(ctx);
 
-        // Check authorization - only regulators from Org1 can onboard manufacturers
+
         this.checkAuthorization(callerInfo, 'regulator', 'Org1MSP');
 
         const existing = await ctx.stub.getState(manufacturerId);
@@ -375,7 +364,6 @@ class ehrChainCode extends Contract {
         return stringify(manufacturer);
     }
 
-    // Create herb batch - Updated with better authorization
     async createHerbBatch(ctx, args) {
         const {
             batchId,
@@ -396,7 +384,7 @@ class ehrChainCode extends Contract {
 
         const callerInfo = this.getCallerAttributes(ctx);
 
-        // Check authorization - only farmers can create herb batches
+       
         if (callerInfo.role !== 'farmer') {
             throw new Error('Only farmers can create herb batches');
         }
@@ -406,7 +394,7 @@ class ehrChainCode extends Contract {
             throw new Error(`Batch ${batchId} already exists`);
         }
 
-        // Geo-fencing validation
+ 
         const geoValidation = this.validateGeoLocation(
             gpsCoordinates.latitude,
             gpsCoordinates.longitude
@@ -458,7 +446,7 @@ class ehrChainCode extends Contract {
             }]
         };
 
-        // Create FHIR Specimen resource for the batch
+  
         const specimen = {
             resourceType: "Specimen",
             id: batchId,
@@ -507,7 +495,6 @@ class ehrChainCode extends Contract {
             }]
         };
 
-        // Create bundle with all resources
         const batch = {
             resourceType: "Bundle",
             type: "collection",
@@ -541,7 +528,6 @@ class ehrChainCode extends Contract {
         return stringify(batch);
     }
 
-    // Add quality test - Updated with better authorization
     async addQualityTest(ctx, args) {
         const {
             batchId,
@@ -561,7 +547,7 @@ class ehrChainCode extends Contract {
 
         const callerInfo = this.getCallerAttributes(ctx);
 
-        // Check authorization - only laboratories from Org2 or regulators from Org1 can add quality tests
+      
         if (!((callerInfo.mspId === 'Org2MSP' && callerInfo.role === 'laboratory') ||
               (callerInfo.mspId === 'Org1MSP' && callerInfo.role === 'regulator'))) {
             throw new Error('Only laboratories (Org2) or regulators (Org1) can add quality test results');
@@ -576,7 +562,7 @@ class ehrChainCode extends Contract {
         const recordId = this.generateRecordId(ctx, 'QTEST');
         const timestamp = ctx.stub.getTxTimestamp().seconds.low.toString();
 
-        // Create FHIR Observation for quality test
+     
         const observation = {
             resourceType: "Observation",
             id: recordId,
@@ -627,7 +613,6 @@ class ehrChainCode extends Contract {
             }]
         };
 
-        // Create Provenance for the test
         const testProvenance = {
             resourceType: "Provenance",
             id: `${recordId}-prov`,
@@ -665,7 +650,6 @@ class ehrChainCode extends Contract {
             resource: testProvenance
         });
 
-        // Update batch metadata
         const metadata = JSON.parse(batch.extension.find(ext =>
             ext.url === "batch-metadata").valueString);
 
@@ -694,7 +678,7 @@ class ehrChainCode extends Contract {
         });
     }
 
-    // Add processing step - Updated with better authorization
+  
     async addProcessingStep(ctx, args) {
         const {
             batchId,
@@ -728,7 +712,7 @@ class ehrChainCode extends Contract {
         const recordId = this.generateRecordId(ctx, 'PROCESS');
         const timestamp = ctx.stub.getTxTimestamp().seconds.low.toString();
 
-        // Create FHIR Procedure for processing step
+      
         const procedure = {
             resourceType: "Procedure",
             id: recordId,
@@ -762,7 +746,7 @@ class ehrChainCode extends Contract {
             }]
         };
 
-        // Create Provenance for processing
+     
         const processingProvenance = {
             resourceType: "Provenance",
             id: `${recordId}-prov`,
@@ -821,7 +805,7 @@ class ehrChainCode extends Contract {
         });
     }
 
-    // Transfer batch ownership - Updated with better authorization
+
     async transferBatch(ctx, args) {
         const { batchId, toEntityId, transferReason, transferLocation, documents } = JSON.parse(args);
         const callerInfo = this.getCallerAttributes(ctx);
@@ -880,12 +864,11 @@ class ehrChainCode extends Contract {
             }] : []
         };
 
-        // Add transfer to batch bundle
         batch.entry.push({
             resource: transferProvenance
         });
 
-        // Update batch metadata
+
         const metadata = JSON.parse(batch.extension.find(ext =>
             ext.url === "batch-metadata").valueString);
 
@@ -905,7 +888,6 @@ class ehrChainCode extends Contract {
         });
     }
 
-    // Create medicine from batches - Updated with better authorization
     async createMedicine(ctx, args) {
         const {
             medicineId,
@@ -945,7 +927,7 @@ class ehrChainCode extends Contract {
         const recordId = this.generateRecordId(ctx, 'MED');
         const timestamp = ctx.stub.getTxTimestamp().seconds.low.toString();
 
-        // Create FHIR Medication resource
+
         const medication = {
             resourceType: "Medication",
             id: medicineId,
@@ -977,7 +959,6 @@ class ehrChainCode extends Contract {
             }]
         };
 
-        // Create Provenance for manufacturing
         const manufacturingProvenance = {
             resourceType: "Provenance",
             id: `${recordId}-prov`,
@@ -1006,7 +987,6 @@ class ehrChainCode extends Contract {
             }))
         };
 
-        // Create bundle with all resources
         const medicine = {
             resourceType: "Bundle",
             type: "collection",
@@ -1038,7 +1018,7 @@ class ehrChainCode extends Contract {
         return stringify(medicine);
     }
 
-    // Consumer verification - get complete supply chain info
+  
     async getConsumerInfo(ctx, args) {
         const { medicineId } = JSON.parse(args);
 
@@ -1065,7 +1045,7 @@ class ehrChainCode extends Contract {
             certificates: []
         };
 
-        // Get detailed info for each batch
+        
         for (const ingredient of medicationResource.ingredient) {
             const batchId = ingredient.itemReference.reference.split('/')[1];
             const batchJSON = await ctx.stub.getState(batchId);
@@ -1076,7 +1056,7 @@ class ehrChainCode extends Contract {
                 const metadata = JSON.parse(batch.extension.find(ext =>
                     ext.url === "batch-metadata").valueString);
 
-                // Add ingredient info
+   
                 consumerInfo.ingredients.push({
                     batchId: batchId,
                     herbName: metadata.herbName,
@@ -1088,7 +1068,7 @@ class ehrChainCode extends Contract {
                     geoZone: metadata.geoZone
                 });
 
-                // Extract all events from batch bundle
+             
                 batch.entry.forEach(entry => {
                     const resource = entry.resource;
 
@@ -1124,7 +1104,6 @@ class ehrChainCode extends Contract {
         return stringify(consumerInfo);
     }
 
-    // Get batch details
     async getBatchDetails(ctx, args) {
         const { batchId } = JSON.parse(args);
 
@@ -1148,7 +1127,6 @@ class ehrChainCode extends Contract {
         return medicineJSON.toString();
     }
 
-    // Get all batches by farmer - Updated with better authorization
     async getBatchesByFarmer(ctx, args) {
         const { farmerId } = JSON.parse(args);
         const iterator = await ctx.stub.getStateByRange('', '');
@@ -1182,7 +1160,7 @@ class ehrChainCode extends Contract {
                             }
                         }
                     } catch (err) {
-                        // Skip non-JSON or malformed records
+                        // JSON or malformed fuckup
                     }
                 }
                 result = await iterator.next();
@@ -1194,7 +1172,6 @@ class ehrChainCode extends Contract {
         return JSON.stringify(results);
     }
 
-    // Track supply chain
     async trackSupplyChain(ctx, args) {
         const { itemId } = JSON.parse(args);
 
@@ -1210,7 +1187,6 @@ class ehrChainCode extends Contract {
             timeline: []
         };
 
-        // If it's a medicine, get source batches
         if (item.resourceType === "Bundle" && item.entry) {
             const medication = item.entry.find(e => e.resource.resourceType === "Medication");
 
@@ -1223,7 +1199,7 @@ class ehrChainCode extends Contract {
                         const batch = JSON.parse(batchJSON.toString());
                         supplyChain.sourceBatches.push(batch);
 
-                        // Extract timeline events from batch
+           
                         batch.entry.forEach(entry => {
                             if (entry.resource.resourceType === "Provenance") {
                                 supplyChain.timeline.push({
@@ -1238,14 +1214,12 @@ class ehrChainCode extends Contract {
                 }
             }
         }
-
-        // Sort timeline by date
-        supplyChain.timeline.sort((a, b) => new Date(a.date) - new Date(b.date));
+  supplyChain.timeline.sort((a, b) => new Date(a.date) - new Date(b.date));
 
         return JSON.stringify(supplyChain);
     }
 
-    // Fetch all ledger data - Updated with better authorization
+
     async fetchLedger(ctx) {
         const callerInfo = this.getCallerAttributes(ctx);
 
@@ -1277,7 +1251,6 @@ class ehrChainCode extends Contract {
         return stringify(allResults);
     }
 
-    // Query history of asset
     async queryHistoryOfAsset(ctx, args) {
         const { assetId } = JSON.parse(args);
         const iterator = await ctx.stub.getHistoryForKey(assetId);
