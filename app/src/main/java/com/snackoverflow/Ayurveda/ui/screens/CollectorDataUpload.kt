@@ -90,6 +90,31 @@ data class HerbBatchResponse(
     val batchId: String
 )
 
+// Response structure based on the API logs
+@Serializable
+data class BundleResponse(
+    val resourceType: String,
+    val id: String,
+    val entry: List<Entry>
+)
+
+@Serializable
+data class Entry(
+    val resource: Resource
+)
+
+@Serializable
+data class Resource(
+    val resourceType: String,
+    val id: String,
+    val identifier: List<Identifier>? = null
+)
+
+@Serializable
+data class Identifier(
+    val value: String
+)
+
 // --- Helper Functions ---
 private fun requestCurrentLocation(
     context: Context,
@@ -543,8 +568,34 @@ fun DataCollectionScreen(navController: NavController) {
                                 }
 
                                 if (response.status.isSuccess()) {
-                                    val responseBody = response.body<HerbBatchResponse>()
-                                    val batchId = responseBody.batchId
+                                    val responseBody = response.body<String>()
+                                    android.util.Log.d("DataCollection", "API Response: $responseBody")
+                                    
+                                    // Try to parse as BundleResponse first (new format)
+                                    val batchId = try {
+                                        val bundleResponse = Json.decodeFromString<BundleResponse>(responseBody)
+                                        // Extract batch ID from entry[0].resource.id or entry[0].resource.identifier[0].value
+                                        val firstEntry = bundleResponse.entry.firstOrNull()
+                                        if (firstEntry != null) {
+                                            val resourceId = firstEntry.resource.id
+                                            val identifierValue = firstEntry.resource.identifier?.firstOrNull()?.value
+                                            resourceId.ifEmpty { identifierValue ?: "" }
+                                        } else {
+                                            bundleResponse.id // Fallback to top-level id
+                                        }
+                                    } catch (e: Exception) {
+                                        android.util.Log.d("DataCollection", "Failed to parse as BundleResponse, trying HerbBatchResponse: ${e.message}")
+                                        // Fallback to old format
+                                        try {
+                                            val herbBatchResponse = Json.decodeFromString<HerbBatchResponse>(responseBody)
+                                            herbBatchResponse.batchId
+                                        } catch (e2: Exception) {
+                                            android.util.Log.e("DataCollection", "Failed to parse response: ${e2.message}")
+                                            "BATCH-${System.currentTimeMillis()}" // Fallback batch ID
+                                        }
+                                    }
+                                    
+                                    android.util.Log.d("DataCollection", "Extracted Batch ID: $batchId")
                                     generatedQrCodeBitmap = generateQrCodeBitmap(batchId)
                                     showQrCodeDialog = true
                                 } else {
