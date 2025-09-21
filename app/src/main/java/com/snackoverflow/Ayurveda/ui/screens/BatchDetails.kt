@@ -109,7 +109,7 @@ fun BatchDetailsScreen(navController: NavController) {
             batchData = null
             errorMessage = null
             try {
-                val response = client.post("https://4fefd4396559.ngrok-free.app/getBatchDetails") {
+                val response = client.post("http://3.27.15.114:5000/getBatchDetails") {
                     contentType(ContentType.Application.Json)
                     setBody(mapOf("userId" to userId, "batchId" to batchId))
                 }

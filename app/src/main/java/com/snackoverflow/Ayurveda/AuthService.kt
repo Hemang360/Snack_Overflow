@@ -86,7 +86,7 @@ object AuthService {
     }
 
     // adjust IP for emulator/physical device
-    private const val BASE_URL = "https://4fefd4396559.ngrok-free.app"
+    private const val BASE_URL = "http://3.27.15.114:5000"
 
     suspend fun loginUser(request: LoginRequest): LoginResponse {
         val response = client.post("$BASE_URL/auth/login") {      // updated endpoint

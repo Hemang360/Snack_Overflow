@@ -515,7 +515,7 @@ fun DataCollectionScreen(navController: NavController) {
                                 supabase.storage["herb_images"].upload(path, fileBytes)
                                 val uploadedImageUrl = supabase.storage["herb_images"].publicUrl(path)
 
-                                val jwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmYXJtZXJfMTc1ODM5OTc3MzY3Nl8xOWIxNThiMyIsInJvbGUiOiJmYXJtZXIiLCJlbWFpbCI6InNoYW5raGFuaWxzYWhhQGdtYWlsLmNvbSIsImRldmljZUluZm8iOnsidHlwZSI6IndlYiIsInVzZXJBZ2VudCI6ImN1cmwvOC4xNi4wIiwiaXAiOiI6OjEiLCJ0aW1lc3RhbXAiOiIyMDI1LTA5LTIwVDIxOjIwOjA1LjA3OFoifSwidHlwZSI6ImFjY2VzcyIsImlhdCI6MTc1ODQwMzIwNSwiZXhwIjoxNzU4NDA0MTA1LCJhdWQiOiJheXVydmVkYS11c2VycyIsImlzcyI6ImF5dXJ2ZWRhLXN1cHBseS1jaGFpbiJ9.2V31TxaldRJTdmAMgrCzf2qNilV1VmyjOE7Y3dlSUMU"
+                                val jwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmYXJtZXJfMTc1ODQzMDA0OTM0M18zOGU1ZjNkOSIsInJvbGUiOiJmYXJtZXIiLCJlbWFpbCI6InNoYW5raGFuaWxzYWhhQGdtYWlsLmNvbSIsImRldmljZUluZm8iOnsidHlwZSI6IndlYiIsInVzZXJBZ2VudCI6ImN1cmwvOC41LjAiLCJpcCI6Ijo6ZmZmZjoxMDYuMjE5LjcxLjUiLCJ0aW1lc3RhbXAiOiIyMDI1LTA5LTIxVDA1OjIxOjM0LjE1NFoifSwidHlwZSI6ImFjY2VzcyIsImlhdCI6MTc1ODQzMjA5NCwiZXhwIjoxNzU4NDMyOTk0LCJhdWQiOiJheXVydmVkYS11c2VycyIsImlzcyI6ImF5dXJ2ZWRhLXN1cHBseS1jaGFpbiJ9.zDwI2hUqAQGjbFZq6TtLMwM_l8uxb7vn16wdl80HMi0"
 
                                 val herbBatchRequest = HerbBatchRequest(
                                     batchId = "BATCH-${System.currentTimeMillis()}",
@@ -536,7 +536,7 @@ fun DataCollectionScreen(navController: NavController) {
                                     images = listOf(uploadedImageUrl)
                                 )
 
-                                val response = client.post("https://4fefd4396559.ngrok-free.app/createHerbBatch") {
+                                val response = client.post("http://3.27.15.114:5000/createHerbBatch") {
                                     header(HttpHeaders.Authorization, "Bearer $jwtToken")
                                     contentType(ContentType.Application.Json)
                                     setBody(herbBatchRequest)
