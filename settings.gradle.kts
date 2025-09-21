@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "HerbAbhilekh"
+rootProject.name = "AyurvedaBlockChain"
 include(":app")
  
