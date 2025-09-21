@@ -25,12 +25,12 @@ const invokeTransaction = async (fcn, args, userID) => {
     }
 
     try {
-        // Determine organization based on user ID and role
+    
         let orgID = determineOrganization(userID);
         
         console.log(`Invoking ${fcn} for user ${userID} using organization ${orgID}`);
 
-        // Load connection profile
+   
         const ccpPath = path.resolve(__dirname, '..', 'fabric-samples', 'test-network', 
             'organizations', 'peerOrganizations', `${orgID}.example.com`.toLowerCase(), 
             `connection-${orgID}.json`.toLowerCase());
@@ -41,12 +41,11 @@ const invokeTransaction = async (fcn, args, userID) => {
 
         const ccp = JSON.parse(fs.readFileSync(ccpPath, 'utf8'));
 
-        // Setup wallet
+ 
         const walletPath = path.join(process.cwd(), 'wallet');
         const wallet = await Wallets.newFileSystemWallet(walletPath);
         console.log(`Wallet path: ${walletPath}`);
 
-        // Check if user identity exists in wallet
         const identity = await wallet.get(userID);
         if (!identity) {
             console.log(`An identity for the user ${userID} does not exist in the wallet`);
@@ -64,9 +63,7 @@ const invokeTransaction = async (fcn, args, userID) => {
             identity: userID, 
             discovery: { enabled: true, asLocalhost: true } 
         });
-
-        // Get network and contract
-        const network = await gateway.getNetwork(channelName);
+       const network = await gateway.getNetwork(channelName);
         const contract = network.getContract(chaincodeName);
 
         console.log(`Invoke arguments for ${fcn}:`, JSON.stringify(args, null, 2));
@@ -74,21 +71,20 @@ const invokeTransaction = async (fcn, args, userID) => {
 
         let result;
         
-        // Handle different function call patterns
+   
         if (!args || Object.keys(args).length === 0) {
-            // Functions with no arguments
+        
             result = await contract.submitTransaction(fcn);
         } else {
-            // Functions with arguments - pass as stringified JSON
+  
             result = await contract.submitTransaction(fcn, JSON.stringify(args));
         }
 
         console.log(`Response from ${fcn} chaincode: ${result.toString()}`);
 
-        // Disconnect gateway
+   
         gateway.disconnect();
-
-        // Parse and return result
+    
         try {
             const parsedResult = JSON.parse(result.toString());
             return {
@@ -99,7 +95,7 @@ const invokeTransaction = async (fcn, args, userID) => {
                 txId: result.toString().includes('"') ? undefined : result.toString() // Include raw response if not JSON
             };
         } catch (parseError) {
-            // If result is not JSON, return as string
+    
             return {
                 statusCode: 200,
                 status: true,
@@ -111,7 +107,7 @@ const invokeTransaction = async (fcn, args, userID) => {
     } catch (error) {
         console.error(`Failed to invoke transaction ${fcn} for user ${userID}:`, error.message);
         
-        // Enhanced error handling
+
         let errorMessage = error.message;
         let statusCode = 500;
 
@@ -141,12 +137,10 @@ const invokeTransaction = async (fcn, args, userID) => {
     }
 }
 
-// Helper function to determine organization based on user ID
 function determineOrganization(userID) {
     // Default to Org1
     let orgID = 'Org1';
 
-    // Check if user belongs to Org2 (laboratories and lab overseers)
     if (userID.toLowerCase().includes('lab') ||
         userID === 'Laboratory01' ||
         userID === 'LabOverseer01' ||
@@ -159,7 +153,6 @@ function determineOrganization(userID) {
     return orgID;
 }
 
-// Enhanced invoke function with transaction validation
 const invokeTransactionWithValidation = async (fcn, args, userID, expectedRole = null) => {
     // Pre-validation
     if (!fcn || !userID) {
@@ -170,7 +163,6 @@ const invokeTransactionWithValidation = async (fcn, args, userID, expectedRole =
         };
     }
 
-    // Validate arguments based on function
     const validationResult = validateTransactionArgs(fcn, args);
     if (!validationResult.valid) {
         return {
@@ -183,7 +175,7 @@ const invokeTransactionWithValidation = async (fcn, args, userID, expectedRole =
     return await invokeTransaction(fcn, args, userID);
 }
 
-// Validation helper for transaction arguments
+
 function validateTransactionArgs(fcn, args) {
     if (!args) {
         return { valid: false, message: 'Arguments are required' };
@@ -248,14 +240,13 @@ function validateTransactionArgs(fcn, args) {
             break;
 
         default:
-            // For other functions, basic validation
+
             break;
     }
 
     return { valid: true };
 }
 
-// Batch operations helper
 const invokeBatchOperations = async (operations, userID) => {
     const results = [];
     
