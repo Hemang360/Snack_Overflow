@@ -22,18 +22,38 @@ data class LoginRequest(
 @Serializable
 data class LoginResponse(
     val success: Boolean,
-    val token: String?,
-    val message: String
+    val token: String?, // JWT access token
+    val message: String,
+    val userId: String? = null,
+    val email: String? = null,
+    val role: String? = null
 )
 
 @Serializable
 data class LoginApiResponse(
-    val token: String? = null,
-    val accessToken: String? = null,
-    val access_token: String? = null,
-    val jwt: String? = null,
-    val message: String? = null,
-    val success: Boolean? = null
+    val success: Boolean,
+    val statusCode: Int,
+    val message: String,
+    val data: LoginData? = null
+)
+
+@Serializable
+data class LoginData(
+    val userId: String,
+    val email: String,
+    val role: String,
+    val accessToken: String,
+    val refreshToken: String,
+    val profile: UserProfile? = null
+)
+
+@Serializable
+data class UserProfile(
+    val name: String,
+    val farmLocation: String,
+    val contact: String = "",
+    val certifications: List<String> = emptyList(),
+    val documentCids: List<String> = emptyList()
 )
 
 @Serializable
@@ -103,33 +123,40 @@ object AuthService {
                 Log.d("AuthService", "Login response body: $responseBody")
                 Log.d("AuthService", "Response status: ${response.status}")
                 Log.d("AuthService", "Response headers: ${response.headers}")
-                Log.d("AuthService", "Response body length: ${responseBody.length}")
-                Log.d("AuthService", "Response body type: ${responseBody::class.simpleName}")
                 
-                // Try to parse as JSON first
+                // Parse the JSON response to extract the JWT access token from nested data
                 val jsonResponse = Json.decodeFromString<LoginApiResponse>(responseBody)
-                val extractedToken = jsonResponse.access_token ?: jsonResponse.accessToken ?: jsonResponse.token ?: jsonResponse.jwt
                 
-                Log.d("AuthService", "Extracted token: ${extractedToken?.take(50)}...")
-                Log.d("AuthService", "Token starts with 'eyJ': ${extractedToken?.startsWith("eyJ")}")
-                
-                val finalToken = extractedToken ?: responseBody
-                Log.d("AuthService", "Final token to return: ${finalToken.take(50)}...")
-                
-                LoginResponse(
-                    success = true,
-                    token = finalToken,
-                    message = "Login successful"
-                )
+                if (jsonResponse.success && jsonResponse.data != null) {
+                    val jwtToken = jsonResponse.data.accessToken
+                    Log.d("AuthService", "Extracted JWT token: ${jwtToken.take(50)}...")
+                    Log.d("AuthService", "JWT token starts with 'eyJ': ${jwtToken.startsWith("eyJ")}")
+                    Log.d("AuthService", "User ID: ${jsonResponse.data.userId}")
+                    Log.d("AuthService", "User Role: ${jsonResponse.data.role}")
+                    Log.d("AuthService", "User Email: ${jsonResponse.data.email}")
+                    
+                    LoginResponse(
+                        success = true,
+                        token = jwtToken,
+                        message = jsonResponse.message,
+                        userId = jsonResponse.data.userId,
+                        email = jsonResponse.data.email,
+                        role = jsonResponse.data.role
+                    )
+                } else {
+                    Log.e("AuthService", "Login failed - success: ${jsonResponse.success}, data: ${jsonResponse.data}")
+                    LoginResponse(
+                        success = false,
+                        token = null,
+                        message = jsonResponse.message ?: "Login failed"
+                    )
+                }
             } catch (e: Exception) {
                 Log.e("AuthService", "Error parsing login response", e)
-                // If JSON parsing fails, assume the response body is the token itself
-                val responseBody = response.body<String>()
-                Log.d("AuthService", "Using raw response as token: ${responseBody.take(50)}...")
                 LoginResponse(
-                    success = true,
-                    token = responseBody,
-                    message = "Login successful"
+                    success = false,
+                    token = null,
+                    message = "Failed to parse login response: ${e.message}"
                 )
             }
         } else {

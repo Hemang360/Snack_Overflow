@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -247,6 +248,7 @@ fun DataCollectionScreen(navController: NavController) {
     var isLoading by remember { mutableStateOf(false) }
     var showQrCodeDialog by remember { mutableStateOf(false) }
     var generatedQrCodeBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var generatedBatchId by remember { mutableStateOf<String?>(null) }
 
 
     // --- Context and Scopes ---
@@ -380,6 +382,7 @@ fun DataCollectionScreen(navController: NavController) {
             onDismissRequest = {
                 showQrCodeDialog = false
                 generatedQrCodeBitmap = null // Clear the bitmap state
+                generatedBatchId = null // Clear the batch ID state
                 navController.popBackStack()
             },
             title = { Text("Submission Successful!") },
@@ -394,6 +397,15 @@ fun DataCollectionScreen(navController: NavController) {
                             bitmap = bmp.asImageBitmap(),
                             contentDescription = "Generated QR Code for Batch ID"
                         )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        generatedBatchId?.let { batchId ->
+                            Text(
+                                text = "Batch ID: $batchId",
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     } ?: Text("Generating QR Code...")
                 }
             },
@@ -401,6 +413,7 @@ fun DataCollectionScreen(navController: NavController) {
                 TextButton(onClick = {
                     showQrCodeDialog = false
                     generatedQrCodeBitmap = null // Clear the bitmap state
+                    generatedBatchId = null // Clear the batch ID state
                     navController.popBackStack()
                 }) {
                     Text("Done")
@@ -542,7 +555,18 @@ fun DataCollectionScreen(navController: NavController) {
                                 supabase.storage["herb_images"].upload(path, fileBytes)
                                 val uploadedImageUrl = supabase.storage["herb_images"].publicUrl(path)
 
-                                val jwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmYXJtZXJfMTc1ODQzMDA0OTM0M18zOGU1ZjNkOSIsInJvbGUiOiJmYXJtZXIiLCJlbWFpbCI6InNoYW5raGFuaWxzYWhhQGdtYWlsLmNvbSIsImRldmljZUluZm8iOnsidHlwZSI6IndlYiIsInVzZXJBZ2VudCI6ImN1cmwvOC41LjAiLCJpcCI6Ijo6ZmZmZjoxMDYuMjE5LjcxLjUiLCJ0aW1lc3RhbXAiOiIyMDI1LTA5LTIxVDA1OjIxOjM0LjE1NFoifSwidHlwZSI6ImFjY2VzcyIsImlhdCI6MTc1ODQzMjA5NCwiZXhwIjoxNzU4NDMyOTk0LCJhdWQiOiJheXVydmVkYS11c2VycyIsImlzcyI6ImF5dXJ2ZWRhLXN1cHBseS1jaGFpbiJ9.zDwI2hUqAQGjbFZq6TtLMwM_l8uxb7vn16wdl80HMi0"
+                                val jwtToken = tokenManager.getToken()
+                                if (jwtToken == null) {
+                                    Toast.makeText(context, "No authentication token found. Please login again.", Toast.LENGTH_LONG).show()
+                                    isLoading = false
+                                    return@launch
+                                }
+                                
+                                // Log user information for debugging
+                                val userId = tokenManager.getUserId()
+                                val userEmail = tokenManager.getUserEmail()
+                                val userRole = tokenManager.getUserRole()
+                                android.util.Log.d("DataCollection", "Submitting data as User ID: $userId, Email: $userEmail, Role: $userRole")
 
                                 val herbBatchRequest = HerbBatchRequest(
                                     batchId = "BATCH-${System.currentTimeMillis()}",
@@ -598,6 +622,7 @@ fun DataCollectionScreen(navController: NavController) {
                                     }
                                     
                                     android.util.Log.d("DataCollection", "Extracted Batch ID: $batchId")
+                                    generatedBatchId = batchId
                                     generatedQrCodeBitmap = generateQrCodeBitmap(batchId)
                                     showQrCodeDialog = true
                                 } else {
@@ -607,7 +632,11 @@ fun DataCollectionScreen(navController: NavController) {
 
                                     if (response.status.value == 401 || errorBody.contains("token", ignoreCase = true)) {
                                         Toast.makeText(context, "Authentication failed. Please login again.", Toast.LENGTH_LONG).show()
-                                        tokenManager.clearToken()
+                                        tokenManager.clearUserSession()
+                                        // Navigate back to login screen
+                                        navController.navigate(Screen.Login.route) {
+                                            popUpTo(0) { inclusive = true }
+                                        }
                                     } else {
                                         Toast.makeText(context, "API Error: ${response.status.value} - $errorBody", Toast.LENGTH_LONG).show()
                                     }
