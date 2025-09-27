@@ -542,7 +542,18 @@ fun DataCollectionScreen(navController: NavController) {
                                 supabase.storage["herb_images"].upload(path, fileBytes)
                                 val uploadedImageUrl = supabase.storage["herb_images"].publicUrl(path)
 
-                                val jwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmYXJtZXJfMTc1ODQzMDA0OTM0M18zOGU1ZjNkOSIsInJvbGUiOiJmYXJtZXIiLCJlbWFpbCI6InNoYW5raGFuaWxzYWhhQGdtYWlsLmNvbSIsImRldmljZUluZm8iOnsidHlwZSI6IndlYiIsInVzZXJBZ2VudCI6ImN1cmwvOC41LjAiLCJpcCI6Ijo6ZmZmZjoxMDYuMjE5LjcxLjUiLCJ0aW1lc3RhbXAiOiIyMDI1LTA5LTIxVDA1OjIxOjM0LjE1NFoifSwidHlwZSI6ImFjY2VzcyIsImlhdCI6MTc1ODQzMjA5NCwiZXhwIjoxNzU4NDMyOTk0LCJhdWQiOiJheXVydmVkYS11c2VycyIsImlzcyI6ImF5dXJ2ZWRhLXN1cHBseS1jaGFpbiJ9.zDwI2hUqAQGjbFZq6TtLMwM_l8uxb7vn16wdl80HMi0"
+                                val jwtToken = tokenManager.getToken()
+                                if (jwtToken == null) {
+                                    Toast.makeText(context, "No authentication token found. Please login again.", Toast.LENGTH_LONG).show()
+                                    isLoading = false
+                                    return@launch
+                                }
+                                
+                                // Log user information for debugging
+                                val userId = tokenManager.getUserId()
+                                val userEmail = tokenManager.getUserEmail()
+                                val userRole = tokenManager.getUserRole()
+                                android.util.Log.d("DataCollection", "Submitting data as User ID: $userId, Email: $userEmail, Role: $userRole")
 
                                 val herbBatchRequest = HerbBatchRequest(
                                     batchId = "BATCH-${System.currentTimeMillis()}",
@@ -607,7 +618,11 @@ fun DataCollectionScreen(navController: NavController) {
 
                                     if (response.status.value == 401 || errorBody.contains("token", ignoreCase = true)) {
                                         Toast.makeText(context, "Authentication failed. Please login again.", Toast.LENGTH_LONG).show()
-                                        tokenManager.clearToken()
+                                        tokenManager.clearUserSession()
+                                        // Navigate back to login screen
+                                        navController.navigate(Screen.Login.route) {
+                                            popUpTo(0) { inclusive = true }
+                                        }
                                     } else {
                                         Toast.makeText(context, "API Error: ${response.status.value} - $errorBody", Toast.LENGTH_LONG).show()
                                     }

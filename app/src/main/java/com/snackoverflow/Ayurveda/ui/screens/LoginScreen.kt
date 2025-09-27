@@ -192,16 +192,31 @@ fun LoginScreen(navController: NavController) {
                                 val response = AuthService.loginUser(loginRequest)
 
                                 if (response.success && response.token != null) {
-                                    Log.d("LoginScreen", "Login successful! Token received.")
-                                    Log.d("LoginScreen", "Token to save: ${response.token.take(50)}...")
-                                    // Save the JWT token
-                                    tokenManager.saveToken(response.token)
-                                    Log.d("LoginScreen", "Token saved, navigating to dashboard")
+                                    Log.d("LoginScreen", "Login successful! JWT token received.")
+                                    Log.d("LoginScreen", "JWT token to save: ${response.token.take(50)}...")
+                                    Log.d("LoginScreen", "User ID: ${response.userId}")
+                                    Log.d("LoginScreen", "User Email: ${response.email}")
+                                    Log.d("LoginScreen", "User Role: ${response.role}")
+                                    
+                                    // Save the complete user session including JWT access token
+                                    if (response.userId != null && response.email != null && response.role != null) {
+                                        tokenManager.saveUserSession(
+                                            response.userId,
+                                            response.email,
+                                            response.role,
+                                            response.token
+                                        )
+                                    } else {
+                                        // Fallback to just saving the token if user info is missing
+                                        tokenManager.saveToken(response.token)
+                                    }
+                                    
+                                    Log.d("LoginScreen", "User session saved, navigating to dashboard")
                                     navController.navigate(Screen.Dashboard.route)
                                 } else {
                                     Log.e("LoginScreen", "Login failed: ${response.message}")
                                     Log.e("LoginScreen", "Response success: ${response.success}")
-                                    Log.e("LoginScreen", "Response token: ${response.token?.take(50)}...")
+                                    Log.e("LoginScreen", "Response JWT token: ${response.token?.take(50)}...")
                                     // TODO: Show a Snackbar or Toast with an error message
                                 }
                             } catch (e: Exception) {

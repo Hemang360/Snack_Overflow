@@ -33,6 +33,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.snackoverflow.Ayurveda.TokenManager
+import com.snackoverflow.Ayurveda.ui.navigation.Screen
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
@@ -83,13 +85,13 @@ data class GpsCoordinates(
 @Composable
 fun BatchDetailsScreen(navController: NavController) {
     var batchId by remember { mutableStateOf("") }
-    val userId by remember { mutableStateOf("Farmer01") } // Kept as per original logic
     var isLoading by remember { mutableStateOf(false) }
     var batchData by remember { mutableStateOf<BatchData?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) } // For displaying errors in the UI
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val tokenManager = remember { TokenManager(context) }
 
     val client = remember {
         HttpClient(CIO) {
@@ -104,12 +106,34 @@ fun BatchDetailsScreen(navController: NavController) {
             Toast.makeText(context, "Please enter a batch ID", Toast.LENGTH_SHORT).show()
             return
         }
+        
+        val userId = tokenManager.getUserId()
+        if (userId == null) {
+            Toast.makeText(context, "No user session found. Please login again.", Toast.LENGTH_LONG).show()
+            navController.navigate(Screen.Login.route) {
+                popUpTo(0) { inclusive = true }
+            }
+            return
+        }
+        
         scope.launch {
             isLoading = true
             batchData = null
             errorMessage = null
             try {
+                val jwtToken = tokenManager.getToken()
+                if (jwtToken == null) {
+                    Toast.makeText(context, "No authentication token found. Please login again.", Toast.LENGTH_LONG).show()
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                    return@launch
+                }
+                
+                Log.d("BatchDetails", "Fetching batch details for User ID: $userId, Email: ${tokenManager.getUserEmail()}, Role: ${tokenManager.getUserRole()}")
+                
                 val response = client.post("http://3.27.15.114:5000/getBatchDetails") {
+                    header(HttpHeaders.Authorization, "Bearer $jwtToken")
                     contentType(ContentType.Application.Json)
                     setBody(mapOf("userId" to userId, "batchId" to batchId))
                 }
@@ -126,7 +150,16 @@ fun BatchDetailsScreen(navController: NavController) {
                     val errorBody = response.bodyAsText()
                     errorMessage = "Error ${response.status.value}: Server responded with an error."
                     Log.e("BatchDetails", "Error ${response.status.value}: $errorBody")
-                    Toast.makeText(context, "Error: ${response.status.description}", Toast.LENGTH_LONG).show()
+                    
+                    if (response.status.value == 401 || errorBody.contains("token", ignoreCase = true)) {
+                        Toast.makeText(context, "Authentication failed. Please login again.", Toast.LENGTH_LONG).show()
+                        tokenManager.clearUserSession()
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    } else {
+                        Toast.makeText(context, "Error: ${response.status.description}", Toast.LENGTH_LONG).show()
+                    }
                 }
             } catch (e: Exception) {
                 errorMessage = "Request failed: ${e.message}"
