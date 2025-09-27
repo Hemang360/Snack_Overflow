@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -247,6 +248,7 @@ fun DataCollectionScreen(navController: NavController) {
     var isLoading by remember { mutableStateOf(false) }
     var showQrCodeDialog by remember { mutableStateOf(false) }
     var generatedQrCodeBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var generatedBatchId by remember { mutableStateOf<String?>(null) }
 
 
     // --- Context and Scopes ---
@@ -380,6 +382,7 @@ fun DataCollectionScreen(navController: NavController) {
             onDismissRequest = {
                 showQrCodeDialog = false
                 generatedQrCodeBitmap = null // Clear the bitmap state
+                generatedBatchId = null // Clear the batch ID state
                 navController.popBackStack()
             },
             title = { Text("Submission Successful!") },
@@ -394,6 +397,15 @@ fun DataCollectionScreen(navController: NavController) {
                             bitmap = bmp.asImageBitmap(),
                             contentDescription = "Generated QR Code for Batch ID"
                         )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        generatedBatchId?.let { batchId ->
+                            Text(
+                                text = "Batch ID: $batchId",
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     } ?: Text("Generating QR Code...")
                 }
             },
@@ -401,6 +413,7 @@ fun DataCollectionScreen(navController: NavController) {
                 TextButton(onClick = {
                     showQrCodeDialog = false
                     generatedQrCodeBitmap = null // Clear the bitmap state
+                    generatedBatchId = null // Clear the batch ID state
                     navController.popBackStack()
                 }) {
                     Text("Done")
@@ -609,6 +622,7 @@ fun DataCollectionScreen(navController: NavController) {
                                     }
                                     
                                     android.util.Log.d("DataCollection", "Extracted Batch ID: $batchId")
+                                    generatedBatchId = batchId
                                     generatedQrCodeBitmap = generateQrCodeBitmap(batchId)
                                     showQrCodeDialog = true
                                 } else {
