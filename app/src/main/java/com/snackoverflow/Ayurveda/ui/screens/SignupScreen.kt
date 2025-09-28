@@ -48,7 +48,7 @@ fun SignUpScreen(
     var isConfirmPasswordVisible by rememberSaveable { mutableStateOf(false) }
 
     // State for Organization Type dropdown
-    val organizationOptions = listOf("collector", "lab", "admin")
+    val organizationOptions = listOf("farmer", "consumer")
     var isDropdownExpanded by remember { mutableStateOf(false) }
     var selectedOrganization by rememberSaveable { mutableStateOf(organizationOptions[0]) }
 

@@ -430,7 +430,6 @@ fun DataCollectionScreen(navController: NavController) {
             }
         )
     }
-
     Scaffold(
         topBar = {
             TopAppBar(
