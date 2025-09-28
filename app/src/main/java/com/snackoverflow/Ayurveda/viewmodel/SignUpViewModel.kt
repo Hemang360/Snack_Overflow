@@ -10,6 +10,16 @@ import io.ktor.http.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+
+// Error response data class
+@Serializable
+data class ErrorResponse(
+    val success: Boolean,
+    val statusCode: Int,
+    val message: String
+)
 
 // RegistrationState sealed interface remains the same...
 sealed interface RegistrationState {
@@ -47,7 +57,16 @@ class SignUpViewModel : ViewModel() {
                     val errorBody: String = response.body()
                     // Log the server error case
                     Log.w(TAG, "API call failed with status: ${response.status}. Error: $errorBody")
-                    _registrationState.value = RegistrationState.Error("Registration failed: ${response.status.description} - $errorBody")
+                    
+                    // Try to parse the error response to extract just the message
+                    try {
+                        val errorResponse = Json.decodeFromString<ErrorResponse>(errorBody)
+                        _registrationState.value = RegistrationState.Error(errorResponse.message)
+                    } catch (e: Exception) {
+                        // If parsing fails, fall back to showing the full error
+                        Log.e(TAG, "Failed to parse error response", e)
+                        _registrationState.value = RegistrationState.Error("Registration failed: ${response.status.description}")
+                    }
                 }
             } catch (e: Exception) {
                 // Log any exceptions

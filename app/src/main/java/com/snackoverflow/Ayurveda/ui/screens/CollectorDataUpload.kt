@@ -43,8 +43,8 @@ import com.google.android.gms.location.Priority
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import com.snackoverflow.Ayurveda.TokenManager
-import com.snackoverflow.Ayurveda.R // <-- Ensure this path is correct for your project
-import com.snackoverflow.Ayurveda.ui.navigation.Screen // <-- Ensure this path is correct
+// import com.snackoverflow.Ayurveda.R // <-- Ensure this path is correct for your project
+// import com.snackoverflow.Ayurveda.ui.navigation.Screen // <-- Ensure this path is correct
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.storage.Storage
 import io.github.jan.supabase.storage.storage
@@ -87,36 +87,39 @@ data class HerbBatchRequest(
     val images: List<String>
 )
 
+// START: DATA CLASSES FOR THE NESTED API RESPONSE
 @Serializable
-data class HerbBatchResponse(
+data class TopLevelResponse(
+    val success: Boolean,
+    val data: InnerDataWrapper
+)
+
+@Serializable
+data class InnerDataWrapper(
+    val statusCode: Int,
+    val status: Boolean,
     val message: String,
-    val batchId: String
+    val data: ApiBundleResponse // This holds the actual data you need
 )
 
-// Response structure based on the API logs
 @Serializable
-data class BundleResponse(
+data class ApiBundleResponse(
     val resourceType: String,
     val id: String,
-    val entry: List<Entry>
+    val entry: List<ApiEntry>
 )
 
 @Serializable
-data class Entry(
-    val resource: Resource
+data class ApiEntry(
+    val resource: ApiResource
 )
 
 @Serializable
-data class Resource(
+data class ApiResource(
     val resourceType: String,
-    val id: String,
-    val identifier: List<Identifier>? = null
+    val id: String
 )
-
-@Serializable
-data class Identifier(
-    val value: String
-)
+// END: DATA CLASSES
 
 // --- Helper Functions ---
 private fun requestCurrentLocation(
@@ -248,8 +251,7 @@ fun DataCollectionScreen(navController: NavController) {
     var isLoading by remember { mutableStateOf(false) }
     var showQrCodeDialog by remember { mutableStateOf(false) }
     var generatedQrCodeBitmap by remember { mutableStateOf<Bitmap?>(null) }
-    var generatedBatchId by remember { mutableStateOf<String?>(null) }
-
+    var generatedQrContent by remember { mutableStateOf<String?>(null) }
 
     // --- Context and Scopes ---
     val context = LocalContext.current
@@ -382,7 +384,7 @@ fun DataCollectionScreen(navController: NavController) {
             onDismissRequest = {
                 showQrCodeDialog = false
                 generatedQrCodeBitmap = null // Clear the bitmap state
-                generatedBatchId = null // Clear the batch ID state
+                generatedQrContent = null    // Clear the content state
                 navController.popBackStack()
             },
             title = { Text("Submission Successful!") },
@@ -398,9 +400,13 @@ fun DataCollectionScreen(navController: NavController) {
                             contentDescription = "Generated QR Code for Batch ID"
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                        generatedBatchId?.let { batchId ->
+                        generatedQrContent?.let { content ->
                             Text(
-                                text = "Batch ID: $batchId",
+                                text = "Batch ID:", // <-- Changed text for clarity
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Text(
+                                text = content,
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
@@ -412,8 +418,8 @@ fun DataCollectionScreen(navController: NavController) {
             confirmButton = {
                 TextButton(onClick = {
                     showQrCodeDialog = false
-                    generatedQrCodeBitmap = null // Clear the bitmap state
-                    generatedBatchId = null // Clear the batch ID state
+                    generatedQrCodeBitmap = null
+                    generatedQrContent = null
                     navController.popBackStack()
                 }) {
                     Text("Done")
@@ -561,12 +567,6 @@ fun DataCollectionScreen(navController: NavController) {
                                     isLoading = false
                                     return@launch
                                 }
-                                
-                                // Log user information for debugging
-                                val userId = tokenManager.getUserId()
-                                val userEmail = tokenManager.getUserEmail()
-                                val userRole = tokenManager.getUserRole()
-                                android.util.Log.d("DataCollection", "Submitting data as User ID: $userId, Email: $userEmail, Role: $userRole")
 
                                 val herbBatchRequest = HerbBatchRequest(
                                     batchId = "BATCH-${System.currentTimeMillis()}",
@@ -593,38 +593,33 @@ fun DataCollectionScreen(navController: NavController) {
                                     setBody(herbBatchRequest)
                                 }
 
+                                // START: FINAL CORRECTED PARSING LOGIC
                                 if (response.status.isSuccess()) {
                                     val responseBody = response.body<String>()
                                     android.util.Log.d("DataCollection", "API Response: $responseBody")
-                                    
-                                    // Try to parse as BundleResponse first (new format)
-                                    val batchId = try {
-                                        val bundleResponse = Json.decodeFromString<BundleResponse>(responseBody)
-                                        // Extract batch ID from entry[0].resource.id or entry[0].resource.identifier[0].value
-                                        val firstEntry = bundleResponse.entry.firstOrNull()
-                                        if (firstEntry != null) {
-                                            val resourceId = firstEntry.resource.id
-                                            val identifierValue = firstEntry.resource.identifier?.firstOrNull()?.value
-                                            resourceId.ifEmpty { identifierValue ?: "" }
-                                        } else {
-                                            bundleResponse.id // Fallback to top-level id
-                                        }
+
+                                    val qrContentForCode: String? = try {
+                                        val jsonParser = Json { ignoreUnknownKeys = true }
+                                        val topLevelResponse = jsonParser.decodeFromString<TopLevelResponse>(responseBody)
+                                        val bundleResponse = topLevelResponse.data.data
+
+                                        // Grab the main ID from the bundle response
+                                        bundleResponse.id
+
                                     } catch (e: Exception) {
-                                        android.util.Log.d("DataCollection", "Failed to parse as BundleResponse, trying HerbBatchResponse: ${e.message}")
-                                        // Fallback to old format
-                                        try {
-                                            val herbBatchResponse = Json.decodeFromString<HerbBatchResponse>(responseBody)
-                                            herbBatchResponse.batchId
-                                        } catch (e2: Exception) {
-                                            android.util.Log.e("DataCollection", "Failed to parse response: ${e2.message}")
-                                            "BATCH-${System.currentTimeMillis()}" // Fallback batch ID
-                                        }
+                                        android.util.Log.e("DataCollection", "Failed to parse API response: ${e.message}", e)
+                                        null
                                     }
-                                    
-                                    android.util.Log.d("DataCollection", "Extracted Batch ID: $batchId")
-                                    generatedBatchId = batchId
-                                    generatedQrCodeBitmap = generateQrCodeBitmap(batchId)
-                                    showQrCodeDialog = true
+
+                                    if (qrContentForCode != null) {
+                                        android.util.Log.d("DataCollection", "Extracted Batch ID for QR: $qrContentForCode")
+                                        generatedQrContent = qrContentForCode
+                                        generatedQrCodeBitmap = generateQrCodeBitmap(qrContentForCode)
+                                        showQrCodeDialog = true
+                                    } else {
+                                        Toast.makeText(context, "Failed to obtain Batch ID from response.", Toast.LENGTH_LONG).show()
+                                    }
+
                                 } else {
                                     val errorBody = response.body<String>()
                                     android.util.Log.e("DataCollection", "API Error ${response.status.value}: $errorBody")
@@ -634,13 +629,14 @@ fun DataCollectionScreen(navController: NavController) {
                                         Toast.makeText(context, "Authentication failed. Please login again.", Toast.LENGTH_LONG).show()
                                         tokenManager.clearUserSession()
                                         // Navigate back to login screen
-                                        navController.navigate(Screen.Login.route) {
-                                            popUpTo(0) { inclusive = true }
-                                        }
+                                        // navController.navigate(Screen.Login.route) {
+                                        //     popUpTo(0) { inclusive = true }
+                                        // }
                                     } else {
                                         Toast.makeText(context, "API Error: ${response.status.value} - $errorBody", Toast.LENGTH_LONG).show()
                                     }
                                 }
+                                // END: FINAL CORRECTED PARSING LOGIC
 
                             } catch (e: Exception) {
                                 android.util.Log.e("DataCollection", "Submission failed", e)
