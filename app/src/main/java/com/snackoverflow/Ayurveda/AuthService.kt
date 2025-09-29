@@ -177,7 +177,7 @@ object AuthService {
      */
     suspend fun registerUser(request: RegisterRequest): HttpResponse {
         return when (request.organizationType.lowercase()) {
-            "farmer", "collector" -> {   // <-- handle collector as farmer
+            "farmer", "consumer" -> {   // <-- handle collector as farmer
                 val farmerReq = FarmerRegisterRequest(
                     email = request.email,
                     password = request.password,
