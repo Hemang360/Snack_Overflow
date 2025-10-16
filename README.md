@@ -98,27 +98,17 @@ etc.....
 
     - lets first understand the actors in our chaincode
 
-    1. Goverment - network owner
-    2. Hospital - Network orgination 
-    3. Practicing physician / Doctor - member of hospital
-    4. Diagnostics center - org OR peer of hospital
-    5. Pharmacies - Org OR peer of hospital
-    6. Researchers / R&D - org
-    7. Insurance companies - org
-    8. Patient - end user
+    1. farmers 
+    2. laboratories 
+    3. manufacturing units
 
 
    ## now lets see there read write access
 
         1. Goverment - network owner - admin access
-        2. Hospital - Network orgination - Read/Write (doctor data)
-        3. Practicing physician/Doctor - Read/Write (Patient data w.r.t to hospital)
-        4. Diagnostics center - Read/Write (Patient records w.r.t to diagnostics center)
-        5. Pharmacies - Read/Write (Patient prescriptions w.r.t to pharma center)
-        6. Researchers / R&D - Read data of hospital conect, pateint based on consent. 
-        7. Insurance companies - Read/Write (Patient claims)
-        8. Patient - Read/Write (All generated patient data)
-
+        2. farmer - Network orgination - Read/Write (add the batches to blockchain)
+        3. laboratory - Read/Write (append laboratory data to respective batches)
+        4. Manufacturing/processing units - Read/Write (append processing data to respective batches)
 
 
 ### Environment Variables 
